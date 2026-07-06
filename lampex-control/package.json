@@ -14,6 +14,11 @@
     "vue": "^3.5.39",
     "vue-router": "^4.4.0"
   },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
