@@ -1,0 +1,170 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LampexControl API - Feature 002 Mappings",
+    "description": "API REST do LampexControl atualizada com aliases PostgREST.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/rpc/login": {
+      "post": {
+        "summary": "Realiza autenticação de monitores e gestores",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitacoes_monitoria": {
+      "post": {
+        "summary": "Criar uma nova solicitação de monitoria",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome_aluno": { "type": "string" },
+                  "email_aluno": { "type": "string", "format": "email" },
+                  "telefone_aluno": { "type": "string" },
+                  "cpf_aluno": { "type": "string", "minLength": 11, "maxLength": 11 },
+                  "descricao_duvida": { "type": "string" },
+                  "formato": { "type": "string", "enum": ["Presencial", "Online"] },
+                  "horarios_disponiveis": { "type": "object" }
+                },
+                "required": ["nome_aluno", "email_aluno", "telefone_aluno", "cpf_aluno", "descricao_duvida", "formato", "horarios_disponiveis"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado"
+          }
+        }
+      }
+    },
+    "/rpc/registro_horas": {
+      "post": {
+        "summary": "Envio consolidado de atividades (registro_horas)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "semana_ref": { "type": "string", "format": "date" },
+                  "pdf_url": { "type": "string" },
+                  "atividades": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tipo_atividade": { "type": "string" },
+                        "horas_brutas": { "type": "number" },
+                        "evidencia_url": { "type": "string" }
+                      },
+                      "required": ["tipo_atividade", "horas_brutas", "evidencia_url"]
+                    }
+                  }
+                },
+                "required": ["semana_ref", "pdf_url", "atividades"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/view_reuniao_geral": {
+      "get": {
+        "summary": "Heatmap consolidado",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "dia_semana": { "type": "string" },
+                      "bloco_horario": { "type": "string" },
+                      "peso_total": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/view_contato_monitor": {
+      "get": {
+        "summary": "Contato do monitor autorizado",
+        "parameters": [
+          { "name": "cpf_aluno", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chamado_id": { "type": "string", "format": "uuid" },
+                      "cpf_aluno": { "type": "string" },
+                      "monitor_id": { "type": "string", "format": "uuid" },
+                      "monitor_nome": { "type": "string" },
+                      "monitor_telefone": { "type": "string", "nullable": true },
+                      "monitor_plataforma": { "type": "string", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

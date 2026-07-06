@@ -1,0 +1,88 @@
+import { apiClient } from './apiClient';
+
+export interface TutoringRequestPayload {
+  nome_aluno: string;
+  email_aluno: string;
+  telefone_aluno: string;
+  cpf_aluno: string;
+  descricao_duvida: string;
+  formato: 'Presencial' | 'Online';
+  horarios_disponiveis: {
+    dia: string;
+    bloco: string;
+  };
+}
+
+export interface WeeklyReportPayload {
+  semana_ref: string;
+  pdf_url: string;
+  atividades: Array<{
+    tipo_atividade: string;
+    horas_brutas: number;
+    evidencia_url: string;
+  }>;
+}
+
+// Helper para tratar erros da API e traduzir rate-limiting (T015)
+function handleApiError(error: any): never {
+  if (error && error.message && error.message.includes('rate_limit_exceeded')) {
+    error.message = 'Limite de requisições excedido. Tente novamente mais tarde.';
+  }
+  throw error;
+}
+
+// 1. Cadastrar Solicitação de Monitoria (POST /solicitacoes_monitoria)
+export async function createTutoringRequest(payload: TutoringRequestPayload) {
+  const { data, error } = await apiClient
+    .from('solicitacoes_monitoria')
+    .insert({
+      nome_aluno: payload.nome_aluno,
+      email_aluno: payload.email_aluno,
+      telefone_aluno: payload.telefone_aluno,
+      cpf_aluno: payload.cpf_aluno,
+      descricao_duvida: payload.descricao_duvida,
+      formato: payload.formato,
+      horarios_disponiveis: payload.horarios_disponiveis,
+      status: 'Pendente'
+    })
+    .select()
+    .single();
+
+  if (error) handleApiError(error);
+  return data;
+}
+
+// 2. Submeter Registro de Horas Consolidado em Lote (POST /rpc/registro_horas)
+export async function submitWeeklyReport(payload: WeeklyReportPayload) {
+  const { data, error } = await apiClient.rpc('registro_horas', {
+    semana_ref: payload.semana_ref,
+    pdf_url: payload.pdf_url,
+    atividades: payload.atividades
+  });
+
+  if (error) handleApiError(error);
+  return data;
+}
+
+// 3. Obter Mapa de Calor de Reuniões Gerais (GET /view_reuniao_geral)
+export async function getGeneralHeatmap() {
+  const { data, error } = await apiClient
+    .from('view_reuniao_geral')
+    .select('*');
+
+  if (error) handleApiError(error);
+  return data || [];
+}
+
+// 4. Obter Contato Autorizado do Monitor (GET /view_contato_monitor)
+export async function getMonitorContact(cpfAluno: string) {
+  const { data, error } = await apiClient
+    .from('view_contato_monitor')
+    .select('*')
+    .eq('cpf_aluno', cpfAluno.replace(/\D/g, ''))
+    .order('chamado_id', { ascending: false })
+    .limit(1);
+
+  if (error) handleApiError(error);
+  return data && data.length > 0 ? data[0] : null;
+}

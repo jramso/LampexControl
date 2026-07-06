@@ -1,0 +1,226 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LampexControl API",
+    "description": "API REST gerada automaticamente pelo PostgREST sobre a instância Aiven PostgreSQL para gerenciamento do LAMPEX.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/rpc/login": {
+      "post": {
+        "summary": "Realiza autenticação de monitores e gestores",
+        "description": "Valida email e senha e retorna um token JWT para autorização.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticação bem-sucedida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais inválidas"
+          }
+        }
+      }
+    },
+    "/solicitacao_monitoria": {
+      "get": {
+        "summary": "Listar solicitações de monitoria",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista obtida com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SolicitacaoMonitoria" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar uma nova solicitação de monitoria",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome_aluno": { "type": "string" },
+                  "email_aluno": { "type": "string", "format": "email" },
+                  "telefone_aluno": { "type": "string" },
+                  "cpf_aluno": { "type": "string", "minLength": 11, "maxLength": 11 },
+                  "descricao_duvida": { "type": "string" },
+                  "formato": { "type": "string", "enum": ["Presencial", "Online"] },
+                  "horarios_disponiveis": { "type": "object" }
+                },
+                "required": ["nome_aluno", "email_aluno", "telefone_aluno", "cpf_aluno", "descricao_duvida", "formato", "horarios_disponiveis"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Solicitação criada com sucesso"
+          }
+        }
+      }
+    },
+    "/rpc/submit_weekly_report": {
+      "post": {
+        "summary": "Envio unificado de relatório semanal",
+        "description": "Cria um RegistroSemanal e seus respectivos itens de ItemAtividade associados em transação atômica.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "semana_ref": { "type": "string", "format": "date" },
+                  "pdf_url": { "type": "string" },
+                  "atividades": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tipo_atividade": { "type": "string", "enum": ["Monitoria", "Minicurso com Material", "Minicurso sem Material", "Marketing Digital", "Desenvolvimento", "Outros"] },
+                        "horas_brutas": { "type": "number" },
+                        "evidencia_url": { "type": "string" }
+                      },
+                      "required": ["tipo_atividade", "horas_brutas", "evidencia_url"]
+                    }
+                  }
+                },
+                "required": ["semana_ref", "pdf_url", "atividades"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registro semanal unificado criado com sucesso"
+          }
+        }
+      }
+    },
+    "/view_heatmap_disponibilidade": {
+      "get": {
+        "summary": "Obter mapa de calor de disponibilidade de horários",
+        "responses": {
+          "200": {
+            "description": "Dados do mapa de calor obtidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "dia_semana": { "type": "string" },
+                      "bloco_horario": { "type": "string" },
+                      "peso_total": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/historico_auditoria": {
+      "get": {
+        "summary": "Listar histórico de auditorias executadas",
+        "responses": {
+          "200": {
+            "description": "Lista de histórico retornada"
+          }
+        }
+      },
+      "post": {
+        "summary": "Adicionar registro de auditoria (Aprovar/Recusar)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "registro_semanal_id": { "type": "string", "format": "uuid" },
+                  "status_auditoria": { "type": "string", "enum": ["Aprovado", "Recusado"] },
+                  "justificativa": { "type": "string" }
+                },
+                "required": ["registro_semanal_id", "status_auditoria", "justificativa"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Histórico de auditoria inserido"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SolicitacaoMonitoria": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "nome_aluno": { "type": "string" },
+          "email_aluno": { "type": "string" },
+          "telefone_aluno": { "type": "string" },
+          "cpf_aluno": { "type": "string" },
+          "descricao_duvida": { "type": "string" },
+          "formato": { "type": "string" },
+          "horarios_disponiveis": { "type": "object" },
+          "status": { "type": "string" },
+          "monitor_responsavel_id": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
