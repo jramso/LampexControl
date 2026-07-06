@@ -47,21 +47,39 @@ export const router = createRouter({
   routes
 });
 
+// Helper para decodificar JWT no cliente
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+}
+
 // Guard de Autenticação e Controle de Acesso baseado em Roles
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('lampex_jwt_token');
-  const role = localStorage.getItem('lampex_user_role'); // monitor ou gestor
+  let role = null;
+
+  if (token) {
+    const claims = parseJwt(token);
+    if (claims) {
+      role = claims.role;
+    }
+  }
 
   if (to.meta.requiresAuth) {
-    if (!token) {
-      // Se não autenticado, redireciona para login
+    if (!token || !role) {
+      // Se não autenticado ou token inválido, limpa e redireciona
+      localStorage.removeItem('lampex_jwt_token');
+      localStorage.removeItem('lampex_user_role');
       return next({ name: 'Login', query: { redirect: to.fullPath } });
     }
 
     const allowedRoles = to.meta.allowedRoles as string[];
-    if (allowedRoles && !allowedRoles.includes(role || '')) {
-      // Se não autorizado, redireciona para a home ou página apropriada
-      return next({ name: role === 'gestor' ? 'ManagerDashboard' : 'Home' });
+    if (allowedRoles && !allowedRoles.includes(role)) {
+      // Se não autorizado, redireciona o monitor para seu perfil ou home
+      return next({ name: role === 'monitor' ? 'MonitorProfile' : 'Home' });
     }
   }
 

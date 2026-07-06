@@ -52,6 +52,12 @@ async function run() {
     await client.query(mappingsSql);
     console.log('Aliases e views da API mapeados com sucesso!');
 
+    // 4. Executar 004_seed_data.sql
+    console.log('Aplicando seed 004_seed_data.sql...');
+    const seedSql = fs.readFileSync(path.join(baseDir, 'db/migrations/004_seed_data.sql'), 'utf8');
+    await client.query(seedSql);
+    console.log('Seed de dados efetuado com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

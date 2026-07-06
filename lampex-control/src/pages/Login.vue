@@ -24,23 +24,26 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    // Chamar RPC de login
-    const { data, error } = await apiClient.rpc('login', {
-      email: email.value,
-      password: password.value
+    // Chamar endpoint de login do Cloudflare Pages Functions
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: email.value,
+        password: password.value
+      })
     });
 
-    if (error) {
-      if (error.message && error.message.includes('rate_limit_exceeded')) {
-        errorMessage.value = 'Limite de tentativas excedido. Tente novamente mais tarde.';
-      } else {
-        errorMessage.value = 'E-mail ou senha incorretos.';
-      }
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      errorMessage.value = errData.error || 'E-mail ou senha incorretos.';
       isLoading.value = false;
       return;
     }
 
-    const token = data as string;
+    const { token } = await response.json();
     const claims = parseJwt(token);
 
     if (claims) {
@@ -77,7 +80,7 @@ const handleLogin = async () => {
       errorMessage.value = 'Erro ao processar token de autenticação.';
     }
   } catch (err: any) {
-    errorMessage.value = 'Erro de conexão com o barramento PostgREST.';
+    errorMessage.value = 'Erro de conexão com o servidor de autenticação serverless.';
   } finally {
     isLoading.value = false;
   }
