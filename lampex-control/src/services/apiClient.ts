@@ -1,6 +1,6 @@
 import { PostgrestClient } from '@supabase/postgrest-js';
 
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3000');
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const apiClient = new PostgrestClient<any>(API_URL);
 
