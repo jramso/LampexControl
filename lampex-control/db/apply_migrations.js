@@ -70,6 +70,12 @@ async function run() {
     await client.query(makeNullableSql);
     console.log('Campo de PDF tornado opcional com sucesso!');
 
+    // 7. Executar 007_add_gestores.sql
+    console.log('Aplicando migração 007_add_gestores.sql...');
+    const addGestoresSql = fs.readFileSync(path.join(baseDir, 'db/migrations/007_add_gestores.sql'), 'utf8');
+    await client.query(addGestoresSql);
+    console.log('Gestores adicionais criados com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {
