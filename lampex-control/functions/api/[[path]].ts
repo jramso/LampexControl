@@ -75,7 +75,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Prefer',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Prefer, Accept',
     'Access-Control-Max-Age': '86400',
   };
 
@@ -120,51 +120,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const acceptHeader = request.headers.get('Accept') || '';
     const isSingleObject = acceptHeader.includes('application/vnd.pgrst.object+json');
 
-    // ROUTING AND EXECUTION
-    if (resource === 'monitor') {
-      if (request.method === 'GET') {
-        const id = getFilterValue(url.searchParams, 'id');
-        if (!id) {
-          throw new Error('ID do monitor é obrigatório.');
-        }
-        const query = `
-          SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade 
-          FROM monitor 
-          WHERE id = $1
-        `;
-        const { rows } = await client.query(query, [id]);
-        
-        return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-
-      } else if (request.method === 'PATCH') {
-        const id = getFilterValue(url.searchParams, 'id');
-        if (!id) {
-          throw new Error('ID do monitor é obrigatório.');
-        }
-        const body: any = await request.json();
-        const { nome, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade } = body;
-
-        const query = `
-          UPDATE monitor 
-          SET nome = $1, telefone = $2, permite_exibir_contato = $3, plataforma_contato = $4, matriz_disponibilidade = $5 
-          WHERE id = $6 
-          RETURNING id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade
-        `;
-        const { rows } = await client.query(query, [
-          nome, telefone, permite_exibir_contato, plataforma_contato, JSON.stringify(matriz_disponibilidade), id
-        ]);
-
-        return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
-    } else if (resource === 'solicitacoes_monitoria') {
-      if (request.method === 'POST') {
+    // POST / RPC Requests
+    if (request.method === 'POST') {
+      if (resource === 'solicitacoes_monitoria') {
         const body: any = await request.json();
         const { nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis } = body;
 
@@ -181,10 +139,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           status: 201,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
-      }
 
-    } else if (resource === 'rpc/registro_horas') {
-      if (request.method === 'POST') {
+      } else if (resource === 'historico_auditoria') {
+        const body: any = await request.json();
+        const { registro_semanal_id, gestor_id, status_auditoria, justificativa } = body;
+        const query = `
+          INSERT INTO historico_auditoria (registro_semanal_id, gestor_id, status_auditoria, justificativa)
+          VALUES ($1, $2, $3, $4)
+          RETURNING *
+        `;
+        const { rows } = await client.query(query, [registro_semanal_id, gestor_id, status_auditoria, justificativa]);
+        return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+
+      } else if (resource === 'rpc/registro_horas') {
         if (!claims) {
           return new Response(JSON.stringify({ error: 'Não autorizado.' }), {
             status: 401,
@@ -202,38 +172,160 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
+    }
 
-    } else if (resource === 'view_reuniao_geral') {
-      if (request.method === 'GET') {
-        const query = `SELECT * FROM view_heatmap_disponibilidade`;
-        const { rows } = await client.query(query);
+    // PATCH Requests
+    if (request.method === 'PATCH' && resource === 'monitor') {
+      const id = getFilterValue(url.searchParams, 'id');
+      if (!id) {
+        throw new Error('ID do monitor é obrigatório.');
+      }
+      const body: any = await request.json();
+      const { nome, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade } = body;
 
-        return new Response(JSON.stringify(rows), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
+      const query = `
+        UPDATE monitor 
+        SET nome = $1, telefone = $2, permite_exibir_contato = $3, plataforma_contato = $4, matriz_disponibilidade = $5 
+        WHERE id = $6 
+        RETURNING id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade
+      `;
+      const { rows } = await client.query(query, [
+        nome, telefone, permite_exibir_contato, plataforma_contato, JSON.stringify(matriz_disponibilidade), id
+      ]);
+
+      return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // GET Requests
+    if (request.method === 'GET') {
+      let tableName = resource;
+      if (resource === 'solicitacao_monitoria') tableName = 'solicitacao_monitoria';
+      if (resource === 'view_reuniao_geral') tableName = 'view_heatmap_disponibilidade';
+
+      let sql = '';
+      let values: any[] = [];
+      let whereClauses: string[] = [];
+
+      const idEq = getFilterValue(url.searchParams, 'id');
+      if (idEq) {
+        values.push(idEq);
+        whereClauses.push(`id = $${values.length}`);
       }
 
-    } else if (resource === 'view_contato_monitor') {
-      if (request.method === 'GET') {
-        const cpfAluno = getFilterValue(url.searchParams, 'cpf_aluno');
-        if (!cpfAluno) {
-          throw new Error('CPF do aluno é obrigatório.');
-        }
+      const cpfEq = getFilterValue(url.searchParams, 'cpf_aluno');
+      if (cpfEq) {
+        values.push(cpfEq);
+        whereClauses.push(`cpf_aluno = $${values.length}`);
+      }
 
-        const query = `
-          SELECT * FROM view_contato_monitor 
-          WHERE cpf_aluno = $1 
-          ORDER BY chamado_id DESC 
-          LIMIT 1
+      const statusAuditoriaEq = getFilterValue(url.searchParams, 'status_auditoria');
+      if (statusAuditoriaEq) {
+        values.push(statusAuditoriaEq);
+        whereClauses.push(`status_auditoria = $${values.length}`);
+      }
+
+      const idIn = url.searchParams.get('id');
+      if (idIn && idIn.startsWith('in.(') && idIn.endsWith(')')) {
+        const list = idIn.substring(4, idIn.length - 1).split(',').map(s => s.trim());
+        values.push(list);
+        whereClauses.push(`id = ANY($${values.length})`);
+      }
+
+      if (tableName === 'registro_semanal') {
+        sql = `
+          SELECT 
+              r.id, 
+              r.semana_referencia, 
+              r.arquivo_pdf_url, 
+              r.created_at,
+              r.monitor_id,
+              jsonb_build_object(
+                'id', m.id,
+                'nome', m.nome,
+                'email', m.email,
+                'role', m.role
+              ) AS monitor,
+              COALESCE(
+                  jsonb_agg(
+                      jsonb_build_object(
+                          'id', a.id,
+                          'tipo_atividade', a.tipo_atividade,
+                          'horas_brutas', a.horas_brutas,
+                          'horas_liquidas', a.horas_liquidas,
+                          'evidencia_url', a.evidencia_url
+                      )
+                  ) FILTER (WHERE a.id IS NOT NULL), 
+                  '[]'::jsonb
+              ) AS item_atividade
+          FROM registro_semanal r
+          JOIN monitor m ON r.monitor_id = m.id
+          LEFT JOIN item_atividade a ON a.registro_semanal_id = r.id
         `;
-        const { rows } = await client.query(query, [cpfAluno.replace(/\D/g, '')]);
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.map(c => c.replace('id = ', 'r.id = ')).join(' AND ');
+        }
+        sql += ` GROUP BY r.id, m.id, m.nome, m.email, m.role`;
 
-        return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
-          status: 200,
+      } else if (tableName === 'historico_auditoria') {
+        sql = `SELECT id, registro_semanal_id, gestor_id, status_auditoria, justificativa, data_hora_acao FROM historico_auditoria`;
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.join(' AND ');
+        }
+      } else if (tableName === 'monitor') {
+        sql = `SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade FROM monitor`;
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.join(' AND ');
+        }
+      } else if (tableName === 'solicitacao_monitoria') {
+        sql = `SELECT id, nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis, status, monitor_responsavel_id, created_at FROM solicitacao_monitoria`;
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.join(' AND ');
+        }
+      } else if (tableName === 'view_heatmap_disponibilidade') {
+        sql = `SELECT dia_semana, bloco_horario, peso_total FROM view_heatmap_disponibilidade`;
+      } else if (tableName === 'view_contato_monitor') {
+        sql = `SELECT chamado_id, cpf_aluno, monitor_id, monitor_nome, monitor_telefone, monitor_plataforma FROM view_contato_monitor`;
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.join(' AND ');
+        }
+      }
+
+      if (!sql) {
+        return new Response(JSON.stringify({ error: `Recurso desconhecido: ${resource}` }), {
+          status: 404,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
+
+      // Order By
+      const order = url.searchParams.get('order');
+      if (order) {
+        const orderParts = order.split('.');
+        const field = orderParts[0];
+        const direction = orderParts[1] === 'desc' ? 'DESC' : 'ASC';
+        const validFields = ['created_at', 'id', 'chamado_id'];
+        if (validFields.includes(field)) {
+          sql += ` ORDER BY ${field} ${direction}`;
+        }
+      }
+
+      // Limit
+      const limit = url.searchParams.get('limit');
+      if (limit) {
+        const limitNum = parseInt(limit, 10);
+        if (!isNaN(limitNum)) {
+          sql += ` LIMIT ${limitNum}`;
+        }
+      }
+
+      const { rows } = await client.query(sql, values);
+      return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
 
     // Default 404
