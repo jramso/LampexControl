@@ -58,6 +58,12 @@ async function run() {
     await client.query(seedSql);
     console.log('Seed de dados efetuado com sucesso!');
 
+    // 5. Executar 005_volunteer_screening.sql
+    console.log('Aplicando migração 005_volunteer_screening.sql...');
+    const screeningSql = fs.readFileSync(path.join(baseDir, 'db/migrations/005_volunteer_screening.sql'), 'utf8');
+    await client.query(screeningSql);
+    console.log('Triagem de voluntários configurada com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

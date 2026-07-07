@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient, getApiUrl } from './apiClient';
 
 export interface TutoringRequestPayload {
   nome_aluno: string;
@@ -85,4 +85,82 @@ export async function getMonitorContact(cpfAluno: string) {
 
   if (error) handleApiError(error);
   return data && data.length > 0 ? data[0] : null;
+}
+
+// 5. Cadastrar Potencial Voluntário (POST /voluntarios/cadastro)
+export interface VolunteerRegistrationPayload {
+  nome: string;
+  email: string;
+  cpf: string;
+  telefone: string;
+  curso: string;
+  matricula: string;
+  origem_cadastro: string;
+}
+
+export async function registerVolunteer(payload: VolunteerRegistrationPayload) {
+  const response = await fetch(`${getApiUrl()}/voluntarios/cadastro`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao realizar cadastro.');
+  }
+  return data;
+}
+
+// 6. Listar Voluntários Pendentes (GET /voluntarios/pendentes)
+export async function getPendingVolunteers() {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/voluntarios/pendentes`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao buscar candidatos pendentes.');
+  }
+  return data;
+}
+
+// 7. Aprovar Voluntário (POST /voluntarios/:id/aprovar)
+export async function approveVolunteer(id: string) {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/voluntarios/${id}/aprovar`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao aprovar candidato.');
+  }
+  return data;
+}
+
+// 8. Rejeitar Voluntário (POST /voluntarios/:id/rejeitar)
+export async function rejectVolunteer(id: string) {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/voluntarios/${id}/rejeitar`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao rejeitar candidato.');
+  }
+  return data;
 }

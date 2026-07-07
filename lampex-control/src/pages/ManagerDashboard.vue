@@ -2,9 +2,10 @@
 import { ref } from 'vue';
 import AuditPanel from '../components/AuditPanel.vue';
 import MeetingHeatmap from '../components/MeetingHeatmap.vue';
+import TriagemPanel from '../components/TriagemPanel.vue';
 import { exportToSRC } from '../services/srcExport';
 
-const activeTab = ref<'audit' | 'heatmap'>('audit');
+const activeTab = ref<'audit' | 'heatmap' | 'triagem'>('audit');
 
 const handleExport = async () => {
   await exportToSRC();
@@ -45,12 +46,20 @@ const handleExport = async () => {
       >
         🔥 Mapa de Calor (Reuniões)
       </button>
+      <button 
+        @click="activeTab = 'triagem'"
+        class="tab-btn" 
+        :class="{ active: activeTab === 'triagem' }"
+      >
+        📋 Triagem de Voluntários
+      </button>
     </div>
 
     <!-- Conteúdo da Aba Ativa -->
     <div>
       <AuditPanel v-if="activeTab === 'audit'" />
       <MeetingHeatmap v-if="activeTab === 'heatmap'" />
+      <TriagemPanel v-if="activeTab === 'triagem'" />
     </div>
   </div>
 </template>

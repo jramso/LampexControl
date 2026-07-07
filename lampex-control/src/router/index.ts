@@ -5,12 +5,18 @@ import Login from '../pages/Login.vue';
 import MonitorProfile from '../pages/MonitorProfile.vue';
 import WeeklySubmission from '../pages/WeeklySubmission.vue';
 import ManagerDashboard from '../pages/ManagerDashboard.vue';
+import CadastroMonitor from '../components/CadastroMonitor.vue';
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/cadastro',
+    name: 'CadastroMonitor',
+    component: CadastroMonitor
   },
   {
     path: '/status',

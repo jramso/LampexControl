@@ -41,7 +41,10 @@ import TutoringRequestForm from '../components/TutoringRequestForm.vue';
           <p style="color: var(--text-secondary); margin-bottom: 1rem;">
             Se você é voluntário ou bolsista do LAMPEX, acesse sua conta para preencher sua grade de horários, atualizar opções de privacidade ou enviar relatórios de horas.
           </p>
-          <router-link :to="{ name: 'Login' }" class="btn-secondary" style="width: fit-content;">Acessar Área do Monitor</router-link>
+          <div style="display: flex; gap: 1rem;">
+            <router-link :to="{ name: 'Login' }" class="btn-primary" style="width: fit-content;">Acessar Área do Monitor</router-link>
+            <router-link :to="{ name: 'CadastroMonitor' }" class="btn-secondary" style="width: fit-content;">Seja um Voluntário</router-link>
+          </div>
         </div>
       </div>
 

@@ -232,6 +232,7 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleDatabaseRoute(resource: string, request: Request, env: Env, url: URL): Promise<Response> {
+  const resourceParts = resource.split('/');
   // Auth check
   const authHeader = request.headers.get('Authorization');
   let claims: any = null;
@@ -268,7 +269,182 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
     // POST / RPC Requests
     if (request.method === 'POST') {
-      if (resource === 'solicitacoes_monitoria') {
+      if (resource === 'voluntarios/cadastro') {
+        const body: any = await request.json();
+        const { nome, email, cpf, telefone, curso, matricula, origem_cadastro } = body;
+
+        if (!nome || !email || !cpf || !telefone || !curso || !matricula || !origem_cadastro) {
+          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const cleanCpf = cpf.replace(/\D/g, '');
+        if (cleanCpf.length !== 11) {
+          return new Response(JSON.stringify({ error: 'CPF deve conter exatamente 11 dígitos.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const validOrigens = [
+          'Instagram', 
+          'Youtube', 
+          'Professores ou colegas de turma', 
+          'Membros da Equipe Executora do Projeto Lampex', 
+          'Avisos do Ifes'
+        ];
+        if (!validOrigens.includes(origem_cadastro)) {
+          return new Response(JSON.stringify({ error: 'Origem do cadastro inválida.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Check duplicates
+        const checkEmailMonitor = await client.query('SELECT 1 FROM monitor WHERE email = $1', [email]);
+        if (checkEmailMonitor.rows.length > 0) {
+          return new Response(JSON.stringify({ error: 'Este e-mail já pertence a um monitor cadastrado.' }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const checkVoluntario = await client.query(
+          'SELECT 1 FROM potencial_voluntario WHERE email = $1 OR cpf = $2 OR matricula = $3',
+          [email, cleanCpf, matricula]
+        );
+        if (checkVoluntario.rows.length > 0) {
+          return new Response(JSON.stringify({ error: 'E-mail, CPF ou Matrícula já cadastrados na triagem.' }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const query = `
+          INSERT INTO potencial_voluntario (nome, email, cpf, telefone, curso, matricula, origem_cadastro, status_aprovacao)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pendente')
+          RETURNING *
+        `;
+        const { rows } = await client.query(query, [
+          nome, email, cleanCpf, telefone, curso, matricula, origem_cadastro
+        ]);
+
+        return new Response(JSON.stringify(rows[0]), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      } else if (resourceParts[0] === 'voluntarios' && resourceParts.length === 3 && resourceParts[2] === 'aprovar') {
+        if (!claims || claims.role !== 'gestor') {
+          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem aprovar candidatos.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const id = resourceParts[1];
+
+        // Check if exists and is Pendente
+        const { rows: voluntarioRows } = await client.query(
+          'SELECT nome, email, cpf, telefone, matricula, status_aprovacao FROM potencial_voluntario WHERE id = $1',
+          [id]
+        );
+
+        if (voluntarioRows.length === 0) {
+          return new Response(JSON.stringify({ error: 'Candidato não encontrado.' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const voluntario = voluntarioRows[0];
+        if (voluntario.status_aprovacao !== 'Pendente') {
+          return new Response(JSON.stringify({ error: 'Candidato já foi processado (Aprovado ou Rejeitado).' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Check if email already exists in monitor before migrating
+        const { rows: existingMonitor } = await client.query('SELECT 1 FROM monitor WHERE email = $1', [voluntario.email]);
+        if (existingMonitor.length > 0) {
+          return new Response(JSON.stringify({ error: 'Este e-mail já está cadastrado na tabela de monitores.' }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // SQL Transaction
+        try {
+          await client.query('BEGIN');
+
+          await client.query(
+            "UPDATE potencial_voluntario SET status_aprovacao = 'Aprovado' WHERE id = $1",
+            [id]
+          );
+
+          const defaultPassword = `Lampex@${voluntario.matricula}`;
+          const insertQuery = `
+            INSERT INTO monitor (nome, email, senha_hash, telefone, permite_exibir_contato, role)
+            VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, FALSE, 'monitor')
+            RETURNING id
+          `;
+          const { rows: monitorRows } = await client.query(insertQuery, [
+            voluntario.nome, voluntario.email, defaultPassword, voluntario.telefone
+          ]);
+
+          await client.query('COMMIT');
+
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Candidato aprovado e monitor criado com sucesso.',
+            monitor_id: monitorRows[0].id
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+        } catch (txErr: any) {
+          await client.query('ROLLBACK');
+          return new Response(JSON.stringify({ error: `Erro na transação de aprovação: ${txErr.message}` }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+      } else if (resourceParts[0] === 'voluntarios' && resourceParts.length === 3 && resourceParts[2] === 'rejeitar') {
+        if (!claims || claims.role !== 'gestor') {
+          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem rejeitar candidatos.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const id = resourceParts[1];
+
+        const { rows } = await client.query(
+          "UPDATE potencial_voluntario SET status_aprovacao = 'Rejeitado' WHERE id = $1 AND status_aprovacao = 'Pendente' RETURNING id",
+          [id]
+        );
+
+        if (rows.length === 0) {
+          return new Response(JSON.stringify({ error: 'Candidato não encontrado ou já processado.' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Candidato rejeitado com sucesso.'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      } else if (resource === 'solicitacoes_monitoria') {
         const body: any = await request.json();
         const { nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis } = body;
 
@@ -347,6 +523,27 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
     // GET Requests
     if (request.method === 'GET') {
+      if (resource === 'voluntarios/pendentes') {
+        if (!claims || claims.role !== 'gestor') {
+          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar candidatos pendentes.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const query = `
+          SELECT id, nome, email, cpf, telefone, curso, matricula, origem_cadastro, status_aprovacao, created_at
+          FROM potencial_voluntario
+          WHERE status_aprovacao = 'Pendente'
+          ORDER BY created_at ASC
+        `;
+        const { rows } = await client.query(query);
+        return new Response(JSON.stringify(rows), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       let tableName = resource;
       if (resource === 'solicitacao_monitoria') tableName = 'solicitacao_monitoria';
       if (resource === 'view_reuniao_geral') tableName = 'view_heatmap_disponibilidade';
