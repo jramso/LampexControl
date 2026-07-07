@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { apiClient, setAuthHeader, getApiUrl } from '../services/apiClient';
+import ifesLogo from '../assets/ifes_icon.png';
+import lampexLogo from '../assets/lampex_icon.jpg';
 
 const router = useRouter();
 const route = useRoute();
@@ -24,7 +26,6 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    // Chamar endpoint de login do Cloudflare Worker
     const response = await fetch(`${getApiUrl()}/auth/login`, {
       method: 'POST',
       headers: {
@@ -53,7 +54,6 @@ const handleLogin = async () => {
       
       setAuthHeader(token);
 
-      // Buscar nome completo do monitor para exibição
       const { data: monitorData } = await apiClient
         .from('monitor')
         .select('nome')
@@ -66,10 +66,8 @@ const handleLogin = async () => {
         localStorage.setItem('lampex_user_name', claims.email.split('@')[0]);
       }
 
-      // Notifica o App.vue para redesenhar a navbar
       window.dispatchEvent(new Event('auth-change'));
 
-      // Redireciona para rota original ou página inicial baseada na role
       const redirectPath = route.query.redirect as string;
       if (redirectPath) {
         router.push(redirectPath);
@@ -90,7 +88,13 @@ const handleLogin = async () => {
 <template>
   <div style="max-width: 450px; margin: 4rem auto 0 auto;">
     <div class="glass-card">
-      <h2 style="text-align: center; margin-bottom: 2rem; color: #fff;">Área do Membro</h2>
+      <div style="display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <img :src="lampexLogo" alt="LAMPEX Logo" style="height: 50px; object-fit: contain;" />
+        <div style="width: 1px; height: 35px; background-color: var(--border-color);"></div>
+        <img :src="ifesLogo" alt="IFES Logo" style="height: 50px; object-fit: contain;" />
+      </div>
+      
+      <h2 style="text-align: center; margin-bottom: 2rem; color: var(--text-primary);">Área do Membro</h2>
       
       <form @submit.prevent="handleLogin">
         <div class="form-group">

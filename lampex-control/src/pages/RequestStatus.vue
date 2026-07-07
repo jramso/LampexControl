@@ -63,7 +63,7 @@ const handleSearch = async () => {
 
 <template>
   <div style="max-width: 700px; margin: 0 auto;">
-    <h1 style="text-align: center; margin-bottom: 2rem; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    <h1 style="text-align: center; margin-bottom: 2rem; color: var(--color-primary);">
       Consultar Status de Monitoria
     </h1>
 
@@ -88,7 +88,7 @@ const handleSearch = async () => {
       <div v-if="ticket">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
           <div>
-            <h3 style="color: #fff;">Protocolo de Atendimento</h3>
+            <h3 style="color: var(--text-primary);">Protocolo de Atendimento</h3>
             <span style="font-size: 0.85rem; color: var(--text-secondary);">Código: {{ ticket.id.substring(0, 8).toUpperCase() }}</span>
           </div>
           <span 
@@ -110,38 +110,38 @@ const handleSearch = async () => {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
           <div>
             <h4 style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">Nome do Aluno</h4>
-            <p style="color: #fff; font-weight: 500;">{{ ticket.nome_aluno }}</p>
+            <p style="color: var(--text-primary); font-weight: 500;">{{ ticket.nome_aluno }}</p>
           </div>
           <div>
             <h4 style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">Formato de Preferência</h4>
-            <p style="color: #fff; font-weight: 500;">{{ ticket.formato }}</p>
+            <p style="color: var(--text-primary); font-weight: 500;">{{ ticket.formato }}</p>
           </div>
           <div>
             <h4 style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">Horário Solicitado</h4>
-            <p style="color: #fff; font-weight: 500;">{{ ticket.horarios_disponiveis.dia }} - {{ ticket.horarios_disponiveis.bloco }}</p>
+            <p style="color: var(--text-primary); font-weight: 500;">{{ ticket.horarios_disponiveis.dia }} - {{ ticket.horarios_disponiveis.bloco }}</p>
           </div>
           <div>
             <h4 style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">Data da Solicitação</h4>
-            <p style="color: #fff; font-weight: 500;">{{ new Date(ticket.created_at).toLocaleDateString() }}</p>
+            <p style="color: var(--text-primary); font-weight: 500;">{{ new Date(ticket.created_at).toLocaleDateString() }}</p>
           </div>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
           <h4 style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.25rem;">Descrição da Dúvida</h4>
-          <p style="color: #fff; background-color: var(--bg-tertiary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <p style="color: var(--text-primary); background-color: var(--bg-tertiary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
             {{ ticket.descricao_duvida }}
           </p>
         </div>
 
         <!-- Dados do Monitor Responsável e Privacidade Condicional -->
         <div v-if="ticket.status === 'Confirmado'" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-          <h3 style="color: #fff; margin-bottom: 1rem;">Dados de Atendimento</h3>
+          <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Dados de Atendimento</h3>
           
-          <div v-if="monitorInfo" class="glass-card" style="background-color: rgba(6, 182, 212, 0.03); border-color: rgba(6, 182, 212, 0.2);">
+          <div v-if="monitorInfo" class="glass-card" style="background-color: rgba(0, 135, 68, 0.03); border-color: rgba(0, 135, 68, 0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <span style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: 600; text-transform: uppercase;">Monitor Responsável</span>
-                <h4 style="color: #fff; font-size: 1.2rem; margin-top: 0.25rem;">{{ monitorInfo.nome }}</h4>
+                <span style="font-size: 0.8rem; color: var(--color-primary); font-weight: 600; text-transform: uppercase;">Monitor Responsável</span>
+                <h4 style="color: var(--text-primary); font-size: 1.2rem; margin-top: 0.25rem;">{{ monitorInfo.nome }}</h4>
               </div>
               
               <!-- Exibição de contato condicional baseada na LGPD/Privacidade -->
@@ -157,7 +157,7 @@ const handleSearch = async () => {
                   >
                     Abrir WhatsApp
                   </a>
-                  <span v-else style="color: #fff; font-weight: 600; font-size: 1.1rem;">
+                  <span v-else style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">
                     {{ monitorInfo.telefone }}
                   </span>
                 </template>

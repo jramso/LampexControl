@@ -22,7 +22,7 @@ SYNC IMPACT REPORT
 ## Core Principles
 
 ### I. Desacoplamento Estrito do Ecossistema
-O ecossistema é estritamente dividido em dois subprojetos independentes: o frontend hospedado no Cloudflare Pages em [/lampex-control](file:///C:/Users/josue/OneDrive/Documentos/Jramso/Node/Ts/LampexControl/lampex-control) (desenvolvido em Vue 3, TypeScript e Vite) e o backend hospedado no Cloudflare Workers em [/lampex-control-api](file:///C:/Users/josue/OneDrive/Documentos/Jramso/Node/Ts/LampexControl/lampex-control-api) (desenvolvido em TypeScript utilizando Wrangler). Toda a comunicação entre eles deve ocorrer através de requisições HTTPS.
+O ecossistema é estritamente dividido em dois subprojetos independentes: o frontend hospedado no Cloudflare Pages em [/lampex-control](./lampex-control) (desenvolvido em Vue 3, TypeScript e Vite) e o backend hospedado no Cloudflare Workers em [/lampex-control-api](./lampex-control-api) (desenvolvido em TypeScript utilizando Wrangler). Toda a comunicação entre eles deve ocorrer através de requisições HTTPS.
 
 ### II. Banco de Dados PostgreSQL Centralizado na Nuvem
 Toda a persistência de dados do sistema reside em uma única instância PostgreSQL gerenciada na nuvem da Aiven. A conexão com o banco de dados é feita via Hyperdrive em ambiente de produção ou de forma direta com SSL obrigatório (`sslmode=require`), garantindo segurança dos dados trafegados.

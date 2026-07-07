@@ -96,7 +96,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;">
     <!-- Lista & Detalhes das Submissões -->
     <div class="glass-card" style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <h3 style="color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+      <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
         Fila de Auditoria de Horas
       </h3>
 
@@ -134,17 +134,17 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
             <div style="display: flex; justify-content: space-between;">
               <div>
                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Monitor</span>
-                <h4 style="color: #fff;">{{ selectedSub.monitor?.nome }}</h4>
+                <h4 style="color: var(--text-primary);">{{ selectedSub.monitor?.nome }}</h4>
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Semana de Ref.</span>
-                <p style="color: #fff; font-weight: 500;">{{ new Date(selectedSub.semana_referencia).toLocaleDateString() }}</p>
+                <p style="color: var(--text-primary); font-weight: 500;">{{ new Date(selectedSub.semana_referencia).toLocaleDateString() }}</p>
               </div>
             </div>
 
             <!-- Lista de Atividades do Registro -->
             <div>
-              <h4 style="color: #fff; font-size: 0.9rem; margin-bottom: 0.5rem;">Atividades Praticadas</h4>
+              <h4 style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.5rem;">Atividades Praticadas</h4>
               <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 <div 
                   v-for="act in selectedSub.item_atividade" 
@@ -152,13 +152,13 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
                   style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;"
                 >
                   <div>
-                    <strong style="color: #fff; font-size: 0.9rem; display: block;">{{ act.tipo_atividade }}</strong>
+                    <strong style="color: var(--text-primary); font-size: 0.9rem; display: block;">{{ act.tipo_atividade }}</strong>
                     <a :href="act.evidencia_url" target="_blank" style="color: var(--accent-cyan); font-size: 0.75rem; text-decoration: none;">
                       Link de Evidência ↗
                     </a>
                   </div>
                   <div style="text-align: right;">
-                    <span style="display: block; font-size: 0.9rem; color: #fff; font-weight: 600;">
+                    <span style="display: block; font-size: 0.9rem; color: var(--text-primary); font-weight: 600;">
                       {{ calculateLiquidas(act.tipo_atividade, act.horas_brutas, act.evidencia_url).toFixed(1) }}h líq
                     </span>
                     <span style="font-size: 0.75rem; color: var(--text-secondary);">
@@ -205,7 +205,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
 
     <!-- Visualização Lateral Side-by-Side (PDF do Relatório) -->
     <div class="glass-card" style="height: 600px; display: flex; flex-direction: column;">
-      <h3 style="color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+      <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
         Visualização do Relatório Proex (PDF)
       </h3>
       

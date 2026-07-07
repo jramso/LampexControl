@@ -50,7 +50,7 @@ const handleSubmitReport = async (payload: {
 
 <template>
   <div style="max-width: 800px; margin: 0 auto;">
-    <h1 style="margin-bottom: 2rem; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    <h1 style="margin-bottom: 2rem; color: var(--color-primary);">
       Submeter Relatório Semanal
     </h1>
 

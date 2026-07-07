@@ -57,7 +57,7 @@ const showCellDetails = (day: string, block: string, weight: number) => {
 <template>
   <div class="glass-card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h3 style="color: #fff;">Mapa de Calor de Disponibilidade para Reunião Geral</h3>
+      <h3 style="color: var(--text-primary);">Mapa de Calor de Disponibilidade para Reunião Geral</h3>
       <button @click="fetchHeatmap" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
         Atualizar
       </button>
@@ -73,7 +73,7 @@ const showCellDetails = (day: string, block: string, weight: number) => {
           <thead>
             <tr style="border-bottom: 2px solid var(--border-color);">
               <th style="padding: 0.75rem; text-align: left; color: var(--text-secondary);">Período</th>
-              <th v-for="day in days" :key="day" style="padding: 0.75rem; color: #fff;">
+              <th v-for="day in days" :key="day" style="padding: 0.75rem; color: var(--text-primary);">
                 {{ day.split('-')[0] }}
               </th>
             </tr>
@@ -92,7 +92,7 @@ const showCellDetails = (day: string, block: string, weight: number) => {
                   @click="showCellDetails(day, block, heatmapData[day]?.[block] || 0)"
                   class="heatmap-cell" 
                   :class="getColorClass(heatmapData[day]?.[block] || 0)"
-                  style="height: 48px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; cursor: pointer;"
+                  style="height: 48px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer;"
                 >
                   {{ (heatmapData[day]?.[block] || 0).toFixed(1) }}
                 </div>
@@ -123,7 +123,7 @@ const showCellDetails = (day: string, block: string, weight: number) => {
       >
         <p style="color: var(--text-secondary); font-size: 0.9rem;">
           Janela de Reunião Selecionada: 
-          <strong style="color: #fff;">{{ selectedCell.day }} ({{ selectedCell.block }})</strong>
+          <strong style="color: var(--text-primary);">{{ selectedCell.day }} ({{ selectedCell.block }})</strong>
         </p>
         <p style="color: var(--accent-cyan); font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">
           Score de Disponibilidade Acumulado: {{ selectedCell.weight.toFixed(1) }}

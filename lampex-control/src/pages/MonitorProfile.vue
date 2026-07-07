@@ -87,7 +87,7 @@ const handleSave = async () => {
 
 <template>
   <div style="max-width: 900px; margin: 0 auto;">
-    <h1 style="margin-bottom: 2rem; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    <h1 style="margin-bottom: 2rem; color: var(--color-primary);">
       Configuração do Perfil & Disponibilidade
     </h1>
 
@@ -102,7 +102,7 @@ const handleSave = async () => {
     <form v-else @submit.prevent="handleSave" style="display: flex; flex-direction: column; gap: 2rem;">
       <!-- Informações Gerais & Privacidade -->
       <div class="glass-card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-        <h3 style="grid-column: span 2; color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <h3 style="grid-column: span 2; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
           Dados Cadastrais
         </h3>
         
@@ -135,7 +135,7 @@ const handleSave = async () => {
         <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; gap: 1rem; background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
           <input v-model="permiteExibir" type="checkbox" id="privacidade" style="width: 20px; height: 20px; cursor: pointer;" />
           <label for="privacidade" style="cursor: pointer;">
-            <strong style="color: #fff; display: block; font-size: 0.95rem;">Exibir dados de contato para alunos confirmados</strong>
+            <strong style="color: var(--text-primary); display: block; font-size: 0.95rem;">Exibir dados de contato para alunos confirmados</strong>
             <span style="color: var(--text-secondary); font-size: 0.85rem; display: block;">
               Se ativo, alunos com solicitações de monitoria confirmadas associadas a você poderão visualizar seu link de WhatsApp/plataforma.
             </span>
@@ -145,7 +145,7 @@ const handleSave = async () => {
 
       <!-- Matriz de Disponibilidade Semanal (FR-002) -->
       <div class="glass-card">
-        <h3 style="color: #fff; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+        <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
           Grade de Disponibilidade Individual
         </h3>
         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">

@@ -16,7 +16,7 @@ const handleExport = async () => {
     <!-- Cabeçalho do Dashboard -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
       <div>
-        <h1 style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.25rem;">
+        <h1 style="color: var(--color-primary); font-size: 2.25rem;">
           Painel de Gestão e Coordenação
         </h1>
         <p style="color: var(--text-secondary); font-size: 0.95rem;">
@@ -70,11 +70,11 @@ const handleExport = async () => {
 }
 
 .tab-btn:hover {
-  color: #fff;
+  color: var(--color-primary-dark);
 }
 
 .tab-btn.active {
-  color: var(--accent-cyan);
-  border-bottom-color: var(--accent-cyan);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 </style>

@@ -66,22 +66,33 @@ const handleLogout = () => {
             Meu Perfil
           </router-link>
           
-          <span class="nav-link" style="color: var(--accent-cyan); font-weight: 600;">
+          <span class="nav-link" style="color: #fff; font-weight: 600;">
             Olá, {{ userName }}
           </span>
-          <button @click="handleLogout" class="btn-secondary" style="padding: 0.5rem 1rem;">
+          <button @click="handleLogout" class="btn-secondary" style="padding: 0.5rem 1rem; border-color: rgba(255, 255, 255, 0.4); color: #fff;">
             Sair
           </button>
         </template>
         
-        <router-link v-else :to="{ name: 'Login' }" class="btn-primary" style="padding: 0.5rem 1.25rem;">
+        <router-link v-else :to="{ name: 'Login' }" class="btn-secondary" style="padding: 0.5rem 1.25rem; border-color: #fff; color: var(--color-primary); background-color: #fff; font-weight: 600;">
           Acesso Monitor
         </router-link>
       </div>
     </nav>
 
-    <main style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+    <main style="padding: 2rem; max-width: 1200px; margin: 0 auto; flex-grow: 1; width: 100%;">
       <router-view />
     </main>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <p>&copy; 2026 Lampex Control. Todos os direitos reservados.</p>
+        <div class="footer-links">
+          <a href="https://www.instagram.com/lampex.ifes/" target="_blank" rel="noopener" class="footer-link">Instagram</a>
+          <a href="https://www.linkedin.com/school/lampexifesserra/posts/?feedView=all" target="_blank" rel="noopener" class="footer-link">LinkedIn</a>
+          <a href="https://serra.ifes.edu.br" target="_blank" rel="noopener" class="footer-link">Ifes Campus Serra</a>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
