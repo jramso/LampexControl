@@ -101,7 +101,7 @@ const handleSave = async () => {
 
     <form v-else @submit.prevent="handleSave" style="display: flex; flex-direction: column; gap: 2rem;">
       <!-- Informações Gerais & Privacidade -->
-      <div class="glass-card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+      <div class="glass-card responsive-grid-2">
         <h3 style="grid-column: span 2; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
           Dados Cadastrais
         </h3>

@@ -79,7 +79,7 @@ const handleSubmit = async () => {
         <input v-model="nome" type="text" class="form-input" placeholder="Digite seu nome completo" required />
       </div>
 
-      <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="form-group responsive-grid-2" style="gap: 1rem;">
         <div>
           <label class="form-label">E-mail *</label>
           <input v-model="email" type="email" class="form-input" placeholder="seuemail@exemplo.com" required />
@@ -90,7 +90,7 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-      <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="form-group responsive-grid-2" style="gap: 1rem;">
         <div>
           <label class="form-label">CPF (Apenas números) *</label>
           <input v-model="cpf" type="text" class="form-input" placeholder="Ex: 12345678901" maxlength="11" required />

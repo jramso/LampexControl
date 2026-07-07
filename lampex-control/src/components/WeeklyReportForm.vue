@@ -89,7 +89,7 @@ const handleSubmit = () => {
     </h2>
 
     <form @submit.prevent="handleSubmit">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+      <div class="responsive-grid-2" style="margin-bottom: 1.5rem;">
         <div class="form-group">
           <label class="form-label">Semana de Referência *</label>
           <input v-model="semanaRef" type="date" class="form-input" required />
@@ -120,7 +120,7 @@ const handleSubmit = () => {
             class="glass-card" 
             style="padding: 1.25rem; background: rgba(31, 41, 55, 0.3); position: relative;"
           >
-            <div style="display: grid; grid-template-columns: 2fr 1fr 3fr; gap: 1rem; align-items: flex-end;">
+            <div class="responsive-grid-3" style="align-items: flex-end;">
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Tipo de Atividade</label>
                 <select v-model="act.tipo_atividade" class="form-select">

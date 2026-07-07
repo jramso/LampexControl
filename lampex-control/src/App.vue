@@ -80,7 +80,7 @@ const handleLogout = () => {
       </div>
     </nav>
 
-    <main style="padding: 2rem; max-width: 1200px; margin: 0 auto; flex-grow: 1; width: 100%;">
+    <main class="main-content">
       <router-view />
     </main>
 

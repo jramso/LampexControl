@@ -20,7 +20,7 @@ import TutoringRequestForm from '../components/TutoringRequestForm.vue';
     </div>
 
     <!-- Seção de Serviços e o Formulário de Monitoria -->
-    <div id="solicitar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;">
+    <div id="solicitar" class="responsive-grid-2" style="gap: 2rem; align-items: start;">
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <div class="glass-card">
           <span style="font-size: 0.8rem; color: var(--color-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Serviço</span>

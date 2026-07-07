@@ -93,7 +93,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
 </script>
 
 <template>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;">
+  <div class="responsive-grid-2" style="gap: 2rem; align-items: start;">
     <!-- Lista & Detalhes das Submissões -->
     <div class="glass-card" style="display: flex; flex-direction: column; gap: 1.5rem;">
       <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
