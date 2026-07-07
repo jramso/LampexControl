@@ -6,7 +6,15 @@
 
 **Status**: Draft
 
-**Input**: User description: "Segunda Spec do LampexControl focada no mapeamento de chamados da API via PostgREST. Criação do arquivo de serviços em TypeScript para gerenciar requisições POST para /solicitacoes_monitoria (coletando dados obrigatórios do aluno conforme a LGPD) e /registro_horas (permitindo múltiplos lançamentos de atividades por semana de referência com anexos de arquivos e links). Inclusão de requisições GET para as views de agregação, consumindo /view_reuniao_geral para retornar a matriz consolidada de planejamento e /view_contato_monitor para obter as informações de WhatsApp ou nome de perfil autorizadas pelo monitor para agendamentos validados."
+**Input**: User description: "Segunda Spec do LampexControl focada no mapeamento de chamados da API via Cloudflare Pages Functions utilizando a biblioteca postgres. Criação do arquivo de serviços em TypeScript usando Axios para gerenciar requisições POST para /api/solicitacoes_monitoria (coletando dados obrigatórios do aluno conforme a LGPD) e /api/registro_horas (permitindo múltiplos lançamentos de atividades por semana de referência com anexos de arquivos e links). Inclusão de requisições GET para as views de agregação, consumindo /api/view_reuniao_geral para retornar a matriz consolidada de planejamento e /api/view_contato_monitor para obter as informações de WhatsApp ou nome de perfil autorizadas pelo monitor para agendamentos validados."
+
+## Clarifications
+
+### Session 2026-07-06
+- Q: Como o frontend deve consumir as novas rotas serverless no lugar do cliente PostgREST em apiClient.ts? → A: Substituir apiClient.ts usando Axios para chamadas diretas para as rotas da API.
+- Q: Como as conexões de banco de dados devem ser inicializadas nas Pages Functions usando a biblioteca postgres? → A: Declarar uma única instância global/módulo de postgres (fora do request handler) para reutilizar conexões entre warm starts, com pool reduzido (max: 1 ou max: 2).
+- Q: Como as interfaces de tipos para requisições e respostas da API devem ser gerenciadas? → A: Definir as interfaces de tipos manualmente em um arquivo compartilhado (src/services/types.ts) e importá-las tanto no frontend quanto no backend.
+- Q: Onde as regras de privacidade e segurança críticas devem ser executadas? → A: Executar as regras de negócio críticas e a segurança de privacidade diretamente no PostgreSQL (via Views, Triggers e RLS), fazendo as Pages Functions configurarem o contexto da sessão (JWT claims) no banco a cada requisição.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -60,17 +68,17 @@ Como gestor da coordenação ou aluno com agendamento confirmado, quero consulta
 
 - **Duplicidade de Registro Semanal**: Se o monitor tentar enviar um relatório de atividades para uma semana que já possui registro ativo, o sistema deve recusar a submissão e apresentar um erro de duplicidade.
 - **CPF Malformado**: Se o CPF do aluno contiver menos de 11 dígitos ou caracteres especiais não tratados, o sistema deve impedir a requisição antes de enviá-la para a API.
-- **Inexistência de Monitor Associado**: Se um chamado for confirmado sem que nenhum monitor seja atribuído como responsável, a consulta de contatos deve retornar que o atendimento está sem monitor alocado, sem causar falhas de carregamento.
+- **Inexistência de Monitor Associado**: Se um chamado foi confirmado sem que nenhum monitor seja atribuído como responsável, a consulta de contatos deve retornar que o atendimento está sem monitor alocado, sem causar falhas de carregamento.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: O sistema MUST expor um canal de integração para criação de chamados em `/solicitacoes_monitoria`, exigindo Nome, E-mail, Telefone, CPF e Data de Nascimento do aluno.
+- **FR-001**: O sistema MUST expor um canal de integração para criação de chamados em `/api/solicitacoes_monitoria` via requisição POST, exigindo Nome, E-mail, Telefone, CPF e Data de Nascimento do aluno.
 - **FR-002**: Para conformidade com a LGPD, o sistema MUST armazenar CPF e Data de Nascimento do aluno de forma restrita a consultas autorizadas, não os expondo em listagens públicas.
-- **FR-003**: O sistema MUST expor um método de submissão em lote para `/registro_horas`, integrando a semana de referência, o link do arquivo do relatório Proex e uma coleção dinâmica de atividades com seus links de evidência.
-- **FR-004**: O sistema MUST disponibilizar uma view de leitura em `/view_reuniao_geral` que consolida os pesos de disponibilidade de todos os monitores ativos.
-- **FR-005**: O sistema MUST disponibilizar uma view de leitura em `/view_contato_monitor` para retornar o meio de contato autorizado do monitor apenas se o chamado correspondente estiver com status "Confirmado" e o monitor tiver permitido a exibição em suas configurações de privacidade.
+- **FR-003**: O sistema MUST expor um método de submissão em lote para `/api/registro_horas` via requisição POST, integrando a semana de referência, o link do arquivo do relatório Proex e uma coleção dinâmica de atividades com seus links de evidência.
+- **FR-004**: O sistema MUST disponibilizar uma view de leitura em `/api/view_reuniao_geral` via requisição GET que consolida os pesos de disponibilidade de todos os monitores ativos.
+- **FR-005**: O sistema MUST disponibilizar uma view de leitura em `/api/view_contato_monitor` via requisição GET para retornar o meio de contato autorizado do monitor apenas se o chamado correspondente estiver com status "Confirmado" e o monitor tiver permitido a exibição em suas configurações de privacidade.
 
 ### Key Entities
 
@@ -90,6 +98,9 @@ Como gestor da coordenação ou aluno com agendamento confirmado, quero consulta
 
 ## Assumptions
 
-- **A-001**: O upload de comprovantes em PDF se dará por links externos de storage já resolvidos, não havendo necessidade de processar binários diretamente na API PostgREST.
+- **A-001**: O upload de comprovantes em PDF se dará por links externos de storage já resolvidos, não havendo necessidade de processar binários diretamente na API.
 - **A-002**: A validação de conformidade da LGPD dar-se-á pela retenção de dados cadastrais sensíveis somente para fins administrativos e de certificação.
-- **A-003**: A visualização `/view_reuniao_geral` consome a matriz consolidada no banco gerada a partir dos perfis dos monitores.
+- **A-003**: A visualização `/api/view_reuniao_geral` consome a matriz consolidada no banco gerada a partir dos perfis dos monitores.
+- **A-004**: O frontend utiliza Axios para realizar chamadas assíncronas direcionadas às rotas relativas das Cloudflare Pages Functions.
+- **A-005**: O backend serverless utiliza a biblioteca postgres para realizar a comunicação TCP direta e parametrizada com o PostgreSQL na Aiven, inicializando e reutilizando uma conexão global otimizada.
+- **A-006**: A segurança dos dados e o isolamento (LGPD, RLS, triggers) continuam delegados às restrições do banco de dados, configuradas a cada requisição a partir de metadados de sessão repassados pelas Pages Functions.

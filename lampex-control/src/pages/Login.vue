@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { apiClient, setAuthHeader } from '../services/apiClient';
+import { apiClient, setAuthHeader, getApiUrl } from '../services/apiClient';
 
 const router = useRouter();
 const route = useRoute();
@@ -24,8 +24,8 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    // Chamar endpoint de login do Cloudflare Pages Functions
-    const response = await fetch('/api/auth/login', {
+    // Chamar endpoint de login do Cloudflare Worker
+    const response = await fetch(`${getApiUrl()}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

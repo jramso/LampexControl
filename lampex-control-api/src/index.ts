@@ -8,6 +8,26 @@ export interface Env {
   };
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Prefer, Accept',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Helper to append CORS headers to all responses
+function handleCors(response: Response): Response {
+  const newHeaders = new Headers(response.headers);
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    newHeaders.set(key, value);
+  });
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders
+  });
+}
+
 async function verifyJwt(token: string, secret: string): Promise<any | null> {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -55,6 +75,39 @@ async function verifyJwt(token: string, secret: string): Promise<any | null> {
   }
 }
 
+async function signJwt(payload: any, secret: string): Promise<string> {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  
+  const toBase64Url = (obj: any) => {
+    const json = JSON.stringify(obj);
+    const base64 = btoa(unescape(encodeURIComponent(json)));
+    return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  };
+
+  const encodedHeader = toBase64Url(header);
+  const encodedPayload = toBase64Url(payload);
+  const message = `${encodedHeader}.${encodedPayload}`;
+
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(message);
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('HMAC', key, messageData);
+  const signatureArray = Array.from(new Uint8Array(signature));
+  const binarySignature = String.fromCharCode(...signatureArray);
+  const encodedSignature = btoa(binarySignature).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+  return `${message}.${encodedSignature}`;
+}
+
 function getFilterValue(searchParams: URLSearchParams, key: string): string | null {
   const param = searchParams.get(key);
   if (!param) return null;
@@ -64,28 +117,121 @@ function getFilterValue(searchParams: URLSearchParams, key: string): string | nu
   return param;
 }
 
-export const onRequest: PagesFunction<Env> = async (context) => {
-  const { request, env, params } = context;
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // 1. Handle Preflight Options Request
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
+
+    try {
+      const response = await handleRequest(request, env);
+      return handleCors(response);
+    } catch (err: any) {
+      return handleCors(
+        new Response(JSON.stringify({ error: err.message || 'Erro interno do servidor.' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+    }
+  }
+};
+
+async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  let pathname = url.pathname;
 
-  // Extract path segment (e.g. "monitor", "solicitacoes_monitoria", "rpc/registro_horas")
-  const pathSegments = params.path as string[];
-  const resource = pathSegments ? pathSegments.join('/') : '';
+  // Normalize path and support both /api/resource and /resource formats
+  if (pathname.startsWith('/api')) {
+    pathname = pathname.substring(4);
+  }
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Prefer, Accept',
-    'Access-Control-Max-Age': '86400',
-  };
+  // Remove leading and trailing slashes
+  const resource = pathname.replace(/^\/+|\/+$/g, '');
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
+  // Route auth/login specifically
+  if (resource === 'auth/login') {
+    if (request.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Método não permitido.' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return handleLogin(request, env);
+  }
+
+  // Route all other requests to PostgreSQL (PostgREST style)
+  return handleDatabaseRoute(resource, request, env, url);
+}
+
+async function handleLogin(request: Request, env: Env): Promise<Response> {
+  const body: any = await request.json();
+  const { email, password } = body;
+
+  if (!email || !password) {
+    return new Response(JSON.stringify({ error: 'E-mail e senha são obrigatórios.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 
+  const connectionString = env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : env.DATABASE_URL;
+
+  if (!connectionString) {
+    return new Response(JSON.stringify({ error: 'Nenhuma conexão com o banco de dados configurada.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const client = new pg.Client({
+    connectionString,
+    ssl: env.HYPERDRIVE ? undefined : { rejectUnauthorized: false }
+  });
+
+  await client.connect();
+
+  try {
+    const query = `
+      SELECT id, nome, email, role, (senha_hash = crypt($2, senha_hash)) AS password_ok
+      FROM monitor
+      WHERE email = $1;
+    `;
+    const { rows } = await client.query(query, [email, password]);
+
+    if (rows.length === 0 || !rows[0].password_ok) {
+      return new Response(JSON.stringify({ error: 'E-mail ou senha incorretos.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const user = rows[0];
+    const expirationTime = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
+
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      exp: expirationTime
+    };
+
+    const token = await signJwt(tokenPayload, env.JWT_SECRET || 'your_jwt_secret_here');
+
+    return new Response(JSON.stringify({ token }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } finally {
+    await client.end();
+  }
+}
+
+async function handleDatabaseRoute(resource: string, request: Request, env: Env, url: URL): Promise<Response> {
   // Auth check
   const authHeader = request.headers.get('Authorization');
   let claims: any = null;
@@ -98,7 +244,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!connectionString) {
     return new Response(JSON.stringify({ error: 'Nenhuma conexão com o banco de dados configurada.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 
@@ -137,7 +283,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
         return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
           status: 201,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { 'Content-Type': 'application/json' }
         });
 
       } else if (resource === 'historico_auditoria') {
@@ -151,14 +297,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         const { rows } = await client.query(query, [registro_semanal_id, gestor_id, status_auditoria, justificativa]);
         return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
           status: 201,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { 'Content-Type': 'application/json' }
         });
 
       } else if (resource === 'rpc/registro_horas') {
         if (!claims) {
           return new Response(JSON.stringify({ error: 'Não autorizado.' }), {
             status: 401,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            headers: { 'Content-Type': 'application/json' }
           });
         }
         const body: any = await request.json();
@@ -169,7 +315,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
         return new Response(JSON.stringify(rows[0] ? rows[0].id : null), {
           status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { 'Content-Type': 'application/json' }
         });
       }
     }
@@ -195,7 +341,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
       return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
@@ -296,7 +442,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!sql) {
         return new Response(JSON.stringify({ error: `Recurso desconhecido: ${resource}` }), {
           status: 404,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { 'Content-Type': 'application/json' }
         });
       }
 
@@ -324,22 +470,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const { rows } = await client.query(sql, values);
       return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
     // Default 404
     return new Response(JSON.stringify({ error: `Rota não encontrada: ${resource}` }), {
       status: 404,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      headers: { 'Content-Type': 'application/json' }
     });
 
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || 'Erro interno do servidor.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
   } finally {
     await client.end();
   }
-};
+}

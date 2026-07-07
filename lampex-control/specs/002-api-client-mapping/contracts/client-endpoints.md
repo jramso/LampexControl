@@ -1,10 +1,10 @@
-# Client Endpoints Contract (PostgREST Mapping)
+# API Endpoints Contract (Pages Functions & Axios Mapping)
 
-Este documento define os esquemas e contratos consumidos pelo cliente TypeScript no LampexControl.
+Este documento define os esquemas, parâmetros e formatos de retorno consumidos pelo cliente Axios no LampexControl e processados pelas Cloudflare Pages Functions.
 
 ---
 
-## 1. POST `/solicitacao_monitoria`
+## 1. POST `/api/solicitacoes_monitoria`
 
 Registra uma solicitação de monitoria por parte do aluno.
 
@@ -20,19 +20,18 @@ Registra uma solicitação de monitoria por parte do aluno.
   "horarios_disponiveis": {
     "dia": "Segunda-Feira",
     "bloco": "Matutino (08:00 - 12:00)"
-  },
-  "status": "Pendente"
+  }
 }
 ```
 
 ### Response (201 Created)
-Retorna o objeto criado contendo o ID gerado.
+Retorna o objeto criado contendo o ID gerado e status inicial "Pendente".
 
 ---
 
-## 2. POST `/rpc/submit_weekly_report`
+## 2. POST `/api/rpc/registro_horas`
 
-RPC transacional pai-filho para submissão consolidada das atividades da semana de referência pelo monitor.
+Submissão consolidada das atividades da semana de referência pelo monitor autenticado.
 
 ### Request Payload (JSON)
 ```json
@@ -62,7 +61,7 @@ Retorna o UUID do registro semanal criado:
 
 ---
 
-## 3. GET `/view_heatmap_disponibilidade`
+## 3. GET `/api/view_reuniao_geral`
 
 Retorna a matriz ponderada agregada das disponibilidades dos monitores ativos.
 
@@ -81,3 +80,27 @@ Retorna a matriz ponderada agregada das disponibilidades dos monitores ativos.
   }
 ]
 ```
+
+---
+
+## 4. GET `/api/view_contato_monitor`
+
+Busca as informações de contato autorizadas pelo monitor para um agendamento validado.
+
+### Query Parameters
+* `id` (`eq.<UUID>`): Filtro para correspondência do chamado.
+* `cpf_aluno` (`eq.<VARCHAR>`): Filtro para validação do CPF do aluno dono da solicitação.
+
+### Response (200 OK)
+Retorna as informações do monitor caso o chamado esteja no status "Confirmado" e o monitor permita exibir o contato:
+```json
+[
+  {
+    "chamado_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "monitor_nome": "Marcos Oliveira",
+    "monitor_telefone": "27988888888",
+    "monitor_plataforma": "WhatsApp"
+  }
+]
+```
+Se não autorizado ou chamado pendente, retorna um array vazio `[]` ou oculta os campos confidenciais com base na view do PostgreSQL.

@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+/lampex-control-api/node_modules/
+/lampex-control/node_modules/
+
+# Wrangler & Dev vars
+.wrangler/
+/lampex-control-api/.wrangler/
+/lampex-control/.wrangler/
+.dev.vars
+.dev.vars.local
+.dev.vars.*
+/lampex-control-api/.dev.vars
+/lampex-control/.dev.vars
+
+# Environments
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+/lampex-control/.env
+/lampex-control/.env.production
+/lampex-control-api/.env
+
+# Build outputs
+dist/
+dist-ssr/
+/lampex-control/dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# System & IDEs
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+
+# Agent tool cache
+.agents/
+/lampex-control/.agents/

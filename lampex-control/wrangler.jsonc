@@ -1,15 +1,5 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lampex-control",
-  "compatibility_date": "2026-07-06",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "pages_build_output_dir": "dist",
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "fea7f7f2079a404980392ac9d9d71f0a"
-    }
-  ]
+  "pages_build_output_dir": "dist"
 }
