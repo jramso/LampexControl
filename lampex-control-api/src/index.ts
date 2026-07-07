@@ -259,7 +259,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
     // Set RLS / JWT claims in the session so Postgres triggers/functions can read them (like PostgREST does)
     if (claims) {
-      await client.query("SELECT set_config('request.jwt.claims', $1, true)", [
+      await client.query("SELECT set_config('request.jwt.claims', $1, false)", [
         JSON.stringify({ id: claims.id, role: claims.role, email: claims.email })
       ]);
     }
