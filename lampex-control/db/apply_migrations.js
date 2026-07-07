@@ -64,6 +64,12 @@ async function run() {
     await client.query(screeningSql);
     console.log('Triagem de voluntários configurada com sucesso!');
 
+    // 6. Executar 006_make_pdf_url_nullable.sql
+    console.log('Aplicando migração 006_make_pdf_url_nullable.sql...');
+    const makeNullableSql = fs.readFileSync(path.join(baseDir, 'db/migrations/006_make_pdf_url_nullable.sql'), 'utf8');
+    await client.query(makeNullableSql);
+    console.log('Campo de PDF tornado opcional com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

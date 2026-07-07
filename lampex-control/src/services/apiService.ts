@@ -15,7 +15,7 @@ export interface TutoringRequestPayload {
 
 export interface WeeklyReportPayload {
   semana_ref: string;
-  pdf_url: string;
+  pdf_url: string | null;
   atividades: Array<{
     tipo_atividade: string;
     horas_brutas: number;

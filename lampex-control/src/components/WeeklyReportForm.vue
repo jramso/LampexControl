@@ -65,8 +65,8 @@ const totalHorasLiquidas = computed(() => {
 });
 
 const handleSubmit = () => {
-  if (!semanaRef.value || !pdfUrl.value) {
-    alert('Por favor, preencha a semana de referência e o link do PDF Proex.');
+  if (!semanaRef.value) {
+    alert('Por favor, preencha a semana de referência.');
     return;
   }
   if (atividades.value.length === 0) {
@@ -76,7 +76,7 @@ const handleSubmit = () => {
   
   emit('submit', {
     semana_ref: semanaRef.value,
-    pdf_url: pdfUrl.value,
+    pdf_url: pdfUrl.value || null,
     atividades: atividades.value
   });
 };
@@ -95,8 +95,8 @@ const handleSubmit = () => {
           <input v-model="semanaRef" type="date" class="form-input" required />
         </div>
         <div class="form-group">
-          <label class="form-label">Link do Relatório PDF (Proex) *</label>
-          <input v-model="pdfUrl" type="url" class="form-input" placeholder="Ex: https://storage.com/relatorio.pdf" required />
+          <label class="form-label">Link do Google Drive (Relatórios de Aulas - Opcional)</label>
+          <input v-model="pdfUrl" type="url" class="form-input" placeholder="Ex: https://drive.google.com/..." />
         </div>
       </div>
 
