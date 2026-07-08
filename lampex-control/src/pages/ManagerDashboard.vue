@@ -15,9 +15,9 @@ const handleExport = async () => {
 <template>
   <div style="display: flex; flex-direction: column; gap: 2rem;">
     <!-- Cabeçalho do Dashboard -->
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-      <div>
-        <h1 style="color: var(--color-primary); font-size: 2.25rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+      <div style="flex: 1; min-width: 280px;">
+        <h1 class="dashboard-title" style="color: var(--color-primary); font-size: 2.25rem;">
           Painel de Gestão e Coordenação
         </h1>
         <p style="color: var(--text-secondary); font-size: 0.95rem;">
@@ -31,7 +31,7 @@ const handleExport = async () => {
     </div>
 
     <!-- Navegação de Abas do Dashboard -->
-    <div style="display: flex; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem;">
+    <div style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
       <button 
         @click="activeTab = 'audit'"
         class="tab-btn" 
@@ -76,6 +76,8 @@ const handleExport = async () => {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab-btn:hover {
@@ -85,5 +87,11 @@ const handleExport = async () => {
 .tab-btn.active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+}
+
+@media (max-width: 768px) {
+  .dashboard-title {
+    font-size: 1.75rem !important;
+  }
 }
 </style>

@@ -7,6 +7,7 @@ const router = useRouter();
 const isLoggedIn = ref(false);
 const userRole = ref('');
 const userName = ref('');
+const isMenuOpen = ref(false);
 
 const checkAuth = () => {
   const token = localStorage.getItem('lampex_jwt_token');
@@ -15,10 +16,22 @@ const checkAuth = () => {
   userName.value = localStorage.getItem('lampex_user_name') || '';
 };
 
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value;
+};
+
+const closeMenu = () => {
+  isMenuOpen.value = false;
+};
+
 onMounted(() => {
   checkAuth();
   // Escuta mudanças de auth customizadas
   window.addEventListener('auth-change', checkAuth);
+});
+
+router.afterEach(() => {
+  closeMenu();
 });
 
 const handleLogout = () => {
@@ -29,6 +42,7 @@ const handleLogout = () => {
   isLoggedIn.value = false;
   userRole.value = '';
   userName.value = '';
+  closeMenu();
   router.push({ name: 'Home' });
 };
 </script>
@@ -36,11 +50,23 @@ const handleLogout = () => {
 <template>
   <div class="glass-container">
     <nav class="navbar">
-      <router-link :to="{ name: 'Home' }" class="nav-logo">LampexControl</router-link>
+      <router-link :to="{ name: 'Home' }" class="nav-logo" @click="closeMenu">LampexControl</router-link>
       
-      <div class="nav-links">
-        <router-link :to="{ name: 'Home' }" class="nav-link" active-class="active">Home</router-link>
-        <router-link :to="{ name: 'RequestStatus' }" class="nav-link" active-class="active">Status</router-link>
+      <!-- Hamburger Menu Button for Mobile -->
+      <button 
+        @click="toggleMenu" 
+        class="nav-toggle-btn" 
+        :class="{ active: isMenuOpen }" 
+        aria-label="Toggle Menu"
+      >
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+      
+      <div class="nav-links" :class="{ 'nav-links-open': isMenuOpen }">
+        <router-link :to="{ name: 'Home' }" class="nav-link" active-class="active" @click="closeMenu">Home</router-link>
+        <router-link :to="{ name: 'RequestStatus' }" class="nav-link" active-class="active" @click="closeMenu">Status</router-link>
         
         <!-- Links Dinâmicos por Perfil -->
         <template v-if="isLoggedIn">
@@ -49,6 +75,7 @@ const handleLogout = () => {
             :to="{ name: 'WeeklySubmission' }" 
             class="nav-link" 
             active-class="active"
+            @click="closeMenu"
           >
             Registrar Semana
           </router-link>
@@ -58,15 +85,16 @@ const handleLogout = () => {
             :to="{ name: 'ManagerDashboard' }" 
             class="nav-link" 
             active-class="active"
+            @click="closeMenu"
           >
             Painel Gestor
           </router-link>
           
-          <router-link :to="{ name: 'MonitorProfile' }" class="nav-link" active-class="active">
+          <router-link :to="{ name: 'MonitorProfile' }" class="nav-link" active-class="active" @click="closeMenu">
             Meu Perfil
           </router-link>
           
-          <span class="nav-link" style="color: #fff; font-weight: 600;">
+          <span class="nav-link user-greeting" style="color: #fff; font-weight: 600;">
             Olá, {{ userName }}
           </span>
           <button @click="handleLogout" class="btn-secondary" style="padding: 0.5rem 1rem; border-color: rgba(255, 255, 255, 0.4); color: #fff;">
@@ -74,7 +102,7 @@ const handleLogout = () => {
           </button>
         </template>
         
-        <router-link v-else :to="{ name: 'Login' }" class="btn-secondary" style="padding: 0.5rem 1.25rem; border-color: #fff; color: var(--color-primary); background-color: #fff; font-weight: 600;">
+        <router-link v-else :to="{ name: 'Login' }" class="btn-secondary" style="padding: 0.5rem 1.25rem; border-color: #fff; color: var(--color-primary); background-color: #fff; font-weight: 600;" @click="closeMenu">
           Acesso Monitor
         </router-link>
       </div>
@@ -96,3 +124,4 @@ const handleLogout = () => {
     </footer>
   </div>
 </template>
+

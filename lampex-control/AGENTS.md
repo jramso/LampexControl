@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/005-ui-theme-redesign/plan.md
+at specs/006-responsive-mobile-ui/plan.md
 <!-- SPECKIT END -->

@@ -95,8 +95,8 @@ onMounted(fetchCandidates);
         Nenhum voluntário pendente de triagem no momento.
       </div>
 
-      <!-- Table View -->
-      <div v-else style="overflow-x: auto;">
+      <!-- Desktop Table View -->
+      <div class="desktop-only table-container" style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: var(--font-body);">
           <thead>
             <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-secondary); font-family: var(--font-heading); font-weight: 600;">
@@ -155,11 +155,58 @@ onMounted(fetchCandidates);
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile Cards View -->
+      <div class="mobile-only card-list-container">
+        <div 
+          v-for="candidate in candidates" 
+          :key="candidate.id"
+          class="candidate-card"
+        >
+          <div class="card-header-row">
+            <div class="candidate-name">{{ candidate.nome }}</div>
+            <span class="origin-badge">{{ candidate.origem_cadastro }}</span>
+          </div>
+          
+          <div class="card-details">
+            <p><strong>Matrícula:</strong> {{ candidate.matricula }}</p>
+            <p><strong>Curso:</strong> {{ candidate.curso }}</p>
+            <p><strong>E-mail:</strong> <a :href="'mailto:' + candidate.email" style="color: var(--color-primary);">{{ candidate.email }}</a></p>
+            <p><strong>WhatsApp:</strong> <a :href="'https://wa.me/' + candidate.telefone.replace(/\D/g, '')" target="_blank" style="color: var(--color-primary);">{{ candidate.telefone }}</a></p>
+            <p><strong>Inscrição:</strong> {{ new Date(candidate.created_at).toLocaleDateString() }}</p>
+          </div>
+
+          <div class="card-actions">
+            <button 
+              @click="handleApprove(candidate.id, candidate.nome)"
+              class="action-btn approve"
+              :disabled="isProcessing !== null"
+            >
+              {{ isProcessing === candidate.id ? 'Aprovando...' : 'Aprovar' }}
+            </button>
+            <button 
+              @click="handleReject(candidate.id, candidate.nome)"
+              class="action-btn reject"
+              :disabled="isProcessing !== null"
+            >
+              {{ isProcessing === candidate.id ? 'Rejeitando...' : 'Rejeitar' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
 .table-row-hover:hover {
   background-color: var(--color-bg-subtle);
 }
@@ -215,5 +262,71 @@ onMounted(fetchCandidates);
 .action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Card list styling */
+.card-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.candidate-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.candidate-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.card-details {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.card-actions .action-btn {
+  flex: 1;
+  min-height: var(--touch-target-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: flex !important;
+  }
 }
 </style>

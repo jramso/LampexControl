@@ -86,8 +86,9 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div style="max-width: 450px; margin: 4rem auto 0 auto;">
+  <div style="max-width: 450px; width: 100%; margin: 2rem auto; padding: 0 1rem;">
     <div class="glass-card">
+
       <div style="display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
         <img :src="lampexLogo" alt="LAMPEX Logo" style="height: 50px; object-fit: contain;" />
         <div style="width: 1px; height: 35px; background-color: var(--border-color);"></div>

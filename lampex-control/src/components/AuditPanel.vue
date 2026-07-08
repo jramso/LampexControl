@@ -169,6 +169,18 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
               </div>
             </div>
 
+            <!-- Mobile-only PDF Link Button -->
+            <div class="mobile-pdf-btn-container" style="display: none; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+              <a 
+                :href="selectedSub.arquivo_pdf_url" 
+                target="_blank" 
+                class="btn-primary" 
+                style="width: 100%; text-decoration: none; justify-content: center;"
+              >
+                📄 Abrir Relatório PDF em Nova Aba
+              </a>
+            </div>
+
             <!-- Caixa de Auditoria / Ações -->
             <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
               <label class="form-label">Justificativa da Auditoria</label>
@@ -204,7 +216,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
     </div>
 
     <!-- Visualização Lateral Side-by-Side (PDF do Relatório) -->
-    <div class="glass-card" style="height: 600px; display: flex; flex-direction: column;">
+    <div class="glass-card desktop-pdf-viewer" style="height: 600px; display: flex; flex-direction: column;">
       <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
         Visualização do Relatório Proex (PDF)
       </h3>
@@ -224,3 +236,15 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 768px) {
+  .desktop-pdf-viewer {
+    display: none !important;
+  }
+  
+  .mobile-pdf-btn-container {
+    display: block !important;
+  }
+}
+</style>

@@ -5,15 +5,15 @@ import TutoringRequestForm from '../components/TutoringRequestForm.vue';
 <template>
   <div style="display: grid; grid-template-columns: 1fr; gap: 3rem; align-items: start; padding-top: 1rem;">
     <!-- Banner Hero Expositivo -->
-    <div class="glass-card" style="padding: 3rem; text-align: center; border-color: var(--border-color);">
-      <h1 style="font-size: 3rem; line-height: 1.1; margin-bottom: 1.5rem; font-weight: 800; color: var(--color-primary);">
+    <div class="glass-card hero-banner">
+      <h1 class="hero-title">
         Laboratório Modelo de Práticas de Extensão
       </h1>
-      <p style="font-size: 1.25rem; color: var(--text-secondary); max-width: 800px; margin: 0 auto 2rem auto; font-family: var(--font-body);">
+      <p class="hero-subtitle">
         O **LAMPEX** (Ifes campus Serra) apoia estudantes e a comunidade externa por meio de monitorias acadêmicas personalizadas, minicursos práticos e desenvolvimento de software institucional.
       </p>
       
-      <div style="display: flex; gap: 1rem; justify-content: center;">
+      <div class="hero-actions">
         <a href="#solicitar" class="btn-primary">Solicitar Monitoria Agora</a>
         <router-link :to="{ name: 'RequestStatus' }" class="btn-secondary">Acompanhar Protocolo</router-link>
       </div>
@@ -41,9 +41,9 @@ import TutoringRequestForm from '../components/TutoringRequestForm.vue';
           <p style="color: var(--text-secondary); margin-bottom: 1rem;">
             Se você é voluntário ou bolsista do LAMPEX, acesse sua conta para preencher sua grade de horários, atualizar opções de privacidade ou enviar relatórios de horas.
           </p>
-          <div style="display: flex; gap: 1rem;">
-            <router-link :to="{ name: 'Login' }" class="btn-primary" style="width: fit-content;">Acessar Área do Monitor</router-link>
-            <router-link :to="{ name: 'CadastroMonitor' }" class="btn-secondary" style="width: fit-content;">Seja um Voluntário</router-link>
+          <div class="monitors-actions">
+            <router-link :to="{ name: 'Login' }" class="btn-primary">Acessar Área do Monitor</router-link>
+            <router-link :to="{ name: 'CadastroMonitor' }" class="btn-secondary">Seja um Voluntário</router-link>
           </div>
         </div>
       </div>
@@ -53,3 +53,88 @@ import TutoringRequestForm from '../components/TutoringRequestForm.vue';
     </div>
   </div>
 </template>
+
+<style scoped>
+.hero-banner {
+  padding: 3rem;
+  text-align: center;
+  border-color: var(--border-color);
+}
+
+.hero-title {
+  font-size: 3rem;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  max-width: 800px;
+  margin: 0 auto 2rem auto;
+  font-family: var(--font-body);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.monitors-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.monitors-actions .btn-primary,
+.monitors-actions .btn-secondary {
+  width: fit-content;
+}
+
+@media (max-width: 768px) {
+  .hero-banner {
+    padding: 2.25rem;
+  }
+  
+  .hero-title {
+    font-size: 2.25rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-banner {
+    padding: 1.25rem;
+  }
+  
+  .hero-title {
+    font-size: 1.75rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+  
+  .hero-actions,
+  .monitors-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+  
+  .hero-actions .btn-primary,
+  .hero-actions .btn-secondary,
+  .monitors-actions .btn-primary,
+  .monitors-actions .btn-secondary {
+    width: 100% !important;
+    justify-content: center;
+  }
+}
+</style>
+

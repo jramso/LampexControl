@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { createTutoringRequest } from '../services/apiService';
 
 const emit = defineEmits(['submitted']);
@@ -17,10 +17,49 @@ const isSubmitting = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  const limited = digits.substring(0, 11);
+  if (limited.length <= 2) {
+    return limited.length > 0 ? `(${limited}` : '';
+  }
+  if (limited.length <= 6) {
+    return `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
+  }
+  if (limited.length <= 10) {
+    return `(${limited.substring(0, 2)}) ${limited.substring(2, 6)}-${limited.substring(6)}`;
+  }
+  return `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
+};
+
+const formatCPF = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  const limited = digits.substring(0, 11);
+  if (limited.length <= 3) {
+    return limited;
+  }
+  if (limited.length <= 6) {
+    return `${limited.substring(0, 3)}.${limited.substring(3)}`;
+  }
+  if (limited.length <= 9) {
+    return `${limited.substring(0, 3)}.${limited.substring(3, 6)}.${limited.substring(6)}`;
+  }
+  return `${limited.substring(0, 3)}.${limited.substring(3, 6)}.${limited.substring(6, 9)}-${limited.substring(9)}`;
+};
+
+watch(telefone, (newVal) => {
+  telefone.value = formatPhone(newVal);
+});
+
+watch(cpf, (newVal) => {
+  cpf.value = formatCPF(newVal);
+});
+
 const validateCPF = (val: string) => {
   const clean = val.replace(/\D/g, '');
   return clean.length === 11;
 };
+
 
 const handleSubmit = async () => {
   errorMessage.value = '';
@@ -86,20 +125,20 @@ const handleSubmit = async () => {
         <input v-model="nome" type="text" class="form-input" placeholder="Digite seu nome" required />
       </div>
 
-      <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="form-group responsive-grid-2" style="gap: 1rem;">
         <div>
           <label class="form-label">E-mail *</label>
           <input v-model="email" type="email" class="form-input" placeholder="seuemail@exemplo.com" required />
         </div>
         <div>
           <label class="form-label">Telefone/WhatsApp *</label>
-          <input v-model="telefone" type="text" class="form-input" placeholder="(27) 99999-9999" required />
+          <input v-model="telefone" type="text" class="form-input" placeholder="(27) 99999-9999" maxlength="15" required />
         </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label">CPF (Apenas números - obrigatório para certificado) *</label>
-        <input v-model="cpf" type="text" class="form-input" placeholder="Ex: 12345678901" maxlength="11" required />
+        <label class="form-label">CPF (Obrigatório para certificado) *</label>
+        <input v-model="cpf" type="text" class="form-input" placeholder="Ex: 123.456.789-01" maxlength="14" required />
       </div>
 
       <div class="form-group">
@@ -115,7 +154,7 @@ const handleSubmit = async () => {
         </select>
       </div>
 
-      <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="form-group responsive-grid-2" style="gap: 1rem;">
         <div>
           <label class="form-label">Dia Preferencial *</label>
           <select v-model="horarioDia" class="form-select">
