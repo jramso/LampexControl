@@ -77,15 +77,16 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
       });
 
     if (error) {
-      alert(`Erro ao registrar auditoria: ${error.message}`);
+      alert(`Erro ao registrar auditoria: ${error.message || JSON.stringify(error)}`);
     } else {
       alert(`Registro de horas ${status.toLowerCase()} com sucesso!`);
       auditJustification.value = '';
       emit('audited');
       await fetchSubmissions();
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    alert(`Erro ao registrar auditoria: ${err.message || err}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -131,7 +132,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
 
           <!-- Detalhes do Registro Selecionado -->
           <div v-if="selectedSub" style="display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
               <div>
                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Monitor</span>
                 <h4 style="color: var(--text-primary);">{{ selectedSub.monitor?.nome }}</h4>
@@ -191,7 +192,7 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
                 placeholder="Insira a justificativa ou observações sobre a validação"
               ></textarea>
               
-              <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+              <div class="audit-actions-container" style="display: flex; gap: 1rem; margin-top: 0.5rem;">
                 <button 
                   @click="handleAudit('Aprovado')" 
                   class="btn-primary" 
@@ -245,6 +246,16 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
   
   .mobile-pdf-btn-container {
     display: block !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .audit-actions-container {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  .audit-actions-container button {
+    width: 100% !important;
   }
 }
 </style>

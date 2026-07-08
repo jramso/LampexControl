@@ -271,7 +271,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
     if (request.method === 'POST') {
       if (resource === 'voluntarios/cadastro') {
         const body: any = await request.json();
-        const { nome, email, cpf, telefone, curso, matricula, origem_cadastro } = body;
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { nome, email, cpf, telefone, curso, matricula, origem_cadastro } = payload;
 
         if (!nome || !email || !cpf || !telefone || !curso || !matricula || !origem_cadastro) {
           return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios.' }), {
@@ -388,7 +389,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           const defaultPassword = `Lampex@${voluntario.matricula}`;
           const insertQuery = `
             INSERT INTO monitor (nome, email, senha_hash, telefone, permite_exibir_contato, role)
-            VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, FALSE, 'monitor')
+            VALUES ($1, $2, public.crypt($3, public.gen_salt('bf')), $4, FALSE, 'monitor')
             RETURNING id
           `;
           const { rows: monitorRows } = await client.query(insertQuery, [
@@ -446,7 +447,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
       } else if (resource === 'solicitacoes_monitoria') {
         const body: any = await request.json();
-        const { nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis } = body;
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis } = payload;
 
         const query = `
           INSERT INTO solicitacao_monitoria (nome_aluno, email_aluno, telefone_aluno, cpf_aluno, descricao_duvida, formato, horarios_disponiveis, status) 
@@ -464,7 +466,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
       } else if (resource === 'historico_auditoria') {
         const body: any = await request.json();
-        const { registro_semanal_id, gestor_id, status_auditoria, justificativa } = body;
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { registro_semanal_id, gestor_id, status_auditoria, justificativa } = payload;
         const query = `
           INSERT INTO historico_auditoria (registro_semanal_id, gestor_id, status_auditoria, justificativa)
           VALUES ($1, $2, $3, $4)
@@ -503,7 +506,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         throw new Error('ID do monitor é obrigatório.');
       }
       const body: any = await request.json();
-      const { nome, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade } = body;
+      const payload = Array.isArray(body) ? body[0] : body;
+      const { nome, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade } = payload;
 
       const query = `
         UPDATE monitor 

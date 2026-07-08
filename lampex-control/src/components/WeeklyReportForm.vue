@@ -157,14 +157,14 @@ const handleSubmit = () => {
       <!-- Resumo Totalizador da Semana -->
       <div 
         v-if="atividades.length > 0" 
-        class="glass-card" 
+        class="glass-card totalizer-box" 
         style="background: rgba(6, 182, 212, 0.02); border-color: rgba(6, 182, 212, 0.15); display: flex; justify-content: space-around; align-items: center; margin-bottom: 1.5rem; padding: 1rem;"
       >
         <div>
           <span style="font-size: 0.85rem; color: var(--text-secondary); display: block;">Total Brutas</span>
           <span style="font-size: 1.5rem; font-weight: 700; color: #fff;">{{ totalHorasBrutas.toFixed(1) }}h</span>
         </div>
-        <div style="border-left: 1px solid var(--border-color); height: 40px;"></div>
+        <div class="totalizer-separator" style="border-left: 1px solid var(--border-color); height: 40px;"></div>
         <div>
           <span style="font-size: 0.85rem; color: var(--accent-cyan); display: block; font-weight: 500;">Carga Líquida Estimada</span>
           <span style="font-size: 1.75rem; font-weight: 800; color: var(--accent-cyan);">{{ totalHorasLiquidas.toFixed(1) }}h</span>
@@ -177,3 +177,19 @@ const handleSubmit = () => {
     </form>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 480px) {
+  .totalizer-box {
+    flex-direction: column !important;
+    gap: 1rem !important;
+    text-align: center;
+  }
+  .totalizer-box div {
+    width: 100%;
+  }
+  .totalizer-separator {
+    display: none !important;
+  }
+}
+</style>

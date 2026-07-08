@@ -67,7 +67,8 @@ const setAvailability = (day: string, block: string, val: number) => {
                 :class="{ active: matrix[day]?.[block] === 1.0 }"
                 style="--btn-color: var(--accent-green);"
               >
-                Presencial (1.0)
+                <span class="desktop-text">Presencial (1.0)</span>
+                <span class="mobile-text">Pres. (1.0)</span>
               </button>
               <button 
                 type="button"
@@ -76,7 +77,8 @@ const setAvailability = (day: string, block: string, val: number) => {
                 :class="{ active: matrix[day]?.[block] === 0.5 }"
                 style="--btn-color: var(--accent-cyan);"
               >
-                Online (0.5)
+                <span class="desktop-text">Online (0.5)</span>
+                <span class="mobile-text">On. (0.5)</span>
               </button>
               <button 
                 type="button"
@@ -85,7 +87,8 @@ const setAvailability = (day: string, block: string, val: number) => {
                 :class="{ active: matrix[day]?.[block] === 0.0 }"
                 style="--btn-color: var(--text-muted);"
               >
-                Indisponível (0.0)
+                <span class="desktop-text">Indisponível (0.0)</span>
+                <span class="mobile-text">Indisp. (0.0)</span>
               </button>
             </div>
           </td>
@@ -119,5 +122,18 @@ const setAvailability = (day: string, block: string, val: number) => {
   color: #fff;
   font-weight: 600;
   box-shadow: 0 0 8px var(--btn-color);
+}
+
+.mobile-text {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .desktop-text {
+    display: none;
+  }
+  .mobile-text {
+    display: inline;
+  }
 }
 </style>

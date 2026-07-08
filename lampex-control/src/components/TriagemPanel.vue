@@ -329,4 +329,21 @@ onMounted(fetchCandidates);
     display: flex !important;
   }
 }
+
+@media (max-width: 420px) {
+  .card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+  
+  .card-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .card-actions .action-btn {
+    width: 100%;
+  }
+}
 </style>

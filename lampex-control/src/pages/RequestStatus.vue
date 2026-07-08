@@ -68,7 +68,7 @@ const handleSearch = async () => {
     </h1>
 
     <div class="glass-card" style="margin-bottom: 2rem;">
-      <form @submit.prevent="handleSearch" style="display: flex; gap: 1rem; align-items: flex-end;">
+      <form @submit.prevent="handleSearch" class="search-form" style="display: flex; gap: 1rem; align-items: flex-end;">
         <div class="form-group" style="flex: 1; margin-bottom: 0;">
           <label class="form-label">Insira seu CPF (Apenas números)</label>
           <input v-model="searchCpf" type="text" class="form-input" placeholder="Ex: 12345678901" maxlength="11" required />
@@ -86,7 +86,7 @@ const handleSearch = async () => {
     <!-- Resultados da Busca -->
     <div v-if="searchDone" class="glass-card">
       <div v-if="ticket">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div class="protocol-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
           <div>
             <h3 style="color: var(--text-primary);">Protocolo de Atendimento</h3>
             <span style="font-size: 0.85rem; color: var(--text-secondary);">Código: {{ ticket.id.substring(0, 8).toUpperCase() }}</span>
@@ -138,7 +138,7 @@ const handleSearch = async () => {
           <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Dados de Atendimento</h3>
           
           <div v-if="monitorInfo" class="glass-card" style="background-color: rgba(0, 135, 68, 0.03); border-color: rgba(0, 135, 68, 0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="monitor-contact-row" style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <span style="font-size: 0.8rem; color: var(--color-primary); font-weight: 600; text-transform: uppercase;">Monitor Responsável</span>
                 <h4 style="color: var(--text-primary); font-size: 1.2rem; margin-top: 0.25rem;">{{ monitorInfo.nome }}</h4>
@@ -180,3 +180,37 @@ const handleSearch = async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.search-form {
+  flex-wrap: wrap;
+}
+.protocol-header, .monitor-contact-row {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .search-form {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  .search-form button {
+    width: 100%;
+    height: 44px !important;
+  }
+  .protocol-header, .monitor-contact-row {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+  .monitor-contact-row div:last-child {
+    width: 100%;
+    text-align: left !important;
+  }
+  .monitor-contact-row a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>

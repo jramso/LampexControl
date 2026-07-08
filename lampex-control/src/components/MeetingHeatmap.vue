@@ -56,8 +56,8 @@ const showCellDetails = (day: string, block: string, weight: number) => {
 
 <template>
   <div class="glass-card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h3 style="color: var(--text-primary);">Mapa de Calor de Disponibilidade para Reunião Geral</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem;">
+      <h3 style="color: var(--text-primary); font-size: 1.25rem;">Mapa de Calor de Disponibilidade para Reunião Geral</h3>
       <button @click="fetchHeatmap" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
         Atualizar
       </button>
@@ -103,7 +103,7 @@ const showCellDetails = (day: string, block: string, weight: number) => {
       </div>
 
       <!-- Legenda de Cores -->
-      <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; justify-content: center; font-size: 0.8rem; color: var(--text-secondary);">
+      <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; justify-content: center; font-size: 0.8rem; color: var(--text-secondary); flex-wrap: wrap;">
         <span>Menor Disponibilidade</span>
         <div style="display: flex; gap: 0.25rem;">
           <div class="heatmap-cell-0" style="width: 16px; height: 16px; border-radius: 3px;"></div>
@@ -132,3 +132,12 @@ const showCellDetails = (day: string, block: string, weight: number) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 480px) {
+  .heatmap-cell {
+    height: 38px !important;
+    font-size: 0.85rem !important;
+  }
+}
+</style>
