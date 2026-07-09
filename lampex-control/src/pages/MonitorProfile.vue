@@ -171,3 +171,18 @@ const handleSave = async () => {
     </form>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 768px) {
+  .responsive-grid-2 > * {
+    grid-column: span 1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  button[type="submit"] {
+    width: 100% !important;
+    align-self: stretch !important;
+  }
+}
+</style>

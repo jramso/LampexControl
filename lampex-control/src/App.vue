@@ -67,6 +67,7 @@ const handleLogout = () => {
       <div class="nav-links" :class="{ 'nav-links-open': isMenuOpen }">
         <router-link :to="{ name: 'Home' }" class="nav-link" active-class="active" @click="closeMenu">Home</router-link>
         <router-link :to="{ name: 'RequestStatus' }" class="nav-link" active-class="active" @click="closeMenu">Status</router-link>
+        <router-link :to="{ name: 'MonitoriaRapida' }" class="nav-link" active-class="active" @click="closeMenu">Monitoria Rápida</router-link>
         
         <!-- Links Dinâmicos por Perfil -->
         <template v-if="isLoggedIn">

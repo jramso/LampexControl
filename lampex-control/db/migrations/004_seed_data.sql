@@ -8,7 +8,8 @@ INSERT INTO monitor (
     role, 
     telefone, 
     plataforma_contato, 
-    permite_exibir_contato
+    permite_exibir_contato,
+    matricula
 ) VALUES 
 (
     'Josué Ramos Souza', 
@@ -17,7 +18,8 @@ INSERT INTO monitor (
     'gestor', 
     '27999999999', 
     'WhatsApp', 
-    true
+    true,
+    '20261BSI0000'
 ),
 (
     'Monitor de Testes', 
@@ -26,6 +28,7 @@ INSERT INTO monitor (
     'monitor', 
     '27999999999', 
     'WhatsApp', 
-    true
+    true,
+    '20261BSI0001'
 )
 ON CONFLICT (email) DO NOTHING;

@@ -76,6 +76,18 @@ async function run() {
     await client.query(addGestoresSql);
     console.log('Gestores adicionais criados com sucesso!');
 
+    // 8. Executar 008_attendance_validation_qr.sql
+    console.log('Aplicando migração 008_attendance_validation_qr.sql...');
+    const qrAttendanceSql = fs.readFileSync(path.join(baseDir, 'db/migrations/008_attendance_validation_qr.sql'), 'utf8');
+    await client.query(qrAttendanceSql);
+    console.log('Tabela de registro_atendimento criada com sucesso!');
+
+    // 9. Executar 009_add_monitor_matricula.sql
+    console.log('Aplicando migração 009_add_monitor_matricula.sql...');
+    const monitorMatriculaSql = fs.readFileSync(path.join(baseDir, 'db/migrations/009_add_monitor_matricula.sql'), 'utf8');
+    await client.query(monitorMatriculaSql);
+    console.log('Coluna matricula adicionada à tabela monitor com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

@@ -179,7 +179,7 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  const connectionString = env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : env.DATABASE_URL;
+  const connectionString = env.DATABASE_URL || (env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : undefined);
 
   if (!connectionString) {
     return new Response(JSON.stringify({ error: 'Nenhuma conexão com o banco de dados configurada.' }), {
@@ -190,7 +190,7 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
 
   const client = new pg.Client({
     connectionString,
-    ssl: env.HYPERDRIVE ? undefined : { rejectUnauthorized: false }
+    ssl: (env.HYPERDRIVE && !env.DATABASE_URL) ? undefined : { rejectUnauthorized: false }
   });
 
   await client.connect();
@@ -241,7 +241,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
     claims = await verifyJwt(token, env.JWT_SECRET || 'your_jwt_secret_here');
   }
 
-  const connectionString = env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : env.DATABASE_URL;
+  const connectionString = env.DATABASE_URL || (env.HYPERDRIVE ? env.HYPERDRIVE.connectionString : undefined);
   if (!connectionString) {
     return new Response(JSON.stringify({ error: 'Nenhuma conexão com o banco de dados configurada.' }), {
       status: 500,
@@ -251,7 +251,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
   const client = new pg.Client({
     connectionString,
-    ssl: env.HYPERDRIVE ? undefined : { rejectUnauthorized: false }
+    ssl: (env.HYPERDRIVE && !env.DATABASE_URL) ? undefined : { rejectUnauthorized: false }
   });
 
   try {
@@ -388,12 +388,12 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
           const defaultPassword = `Lampex@${voluntario.matricula}`;
           const insertQuery = `
-            INSERT INTO monitor (nome, email, senha_hash, telefone, permite_exibir_contato, role)
-            VALUES ($1, $2, public.crypt($3, public.gen_salt('bf')), $4, FALSE, 'monitor')
+            INSERT INTO monitor (nome, email, senha_hash, telefone, permite_exibir_contato, role, matricula)
+            VALUES ($1, $2, public.crypt($3, public.gen_salt('bf')), $4, FALSE, 'monitor', $5)
             RETURNING id
           `;
           const { rows: monitorRows } = await client.query(insertQuery, [
-            voluntario.nome, voluntario.email, defaultPassword, voluntario.telefone
+            voluntario.nome, voluntario.email, defaultPassword, voluntario.telefone, voluntario.matricula
           ]);
 
           await client.query('COMMIT');
@@ -496,6 +496,53 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
+      } else if (resource === 'atendimentos/registrar') {
+        const body: any = await request.json();
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao } = payload;
+
+        if (!monitor_id || !matricula || !nome || !modalidade || !local_ou_link || horas_duracao === undefined) {
+          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const numericHours = parseFloat(horas_duracao);
+        if (isNaN(numericHours) || numericHours <= 0) {
+          return new Response(JSON.stringify({ error: 'Duração deve ser um número maior que zero.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        if (modalidade !== 'Presencial' && modalidade !== 'Online') {
+          return new Response(JSON.stringify({ error: 'Modalidade deve ser "Presencial" ou "Online".' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Verify if monitor exists
+        const checkMonitor = await client.query('SELECT 1 FROM monitor WHERE id = $1', [monitor_id]);
+        if (checkMonitor.rows.length === 0) {
+          return new Response(JSON.stringify({ error: 'Monitor não encontrado.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const query = `
+          INSERT INTO registro_atendimento (monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING *
+        `;
+        const { rows } = await client.query(query, [monitor_id, matricula, nome, modalidade, local_ou_link, numericHours]);
+
+        return new Response(JSON.stringify(rows[0]), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     }
 
@@ -542,6 +589,92 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           ORDER BY created_at ASC
         `;
         const { rows } = await client.query(query);
+        return new Response(JSON.stringify(rows), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else if (resource === 'relatorios/monitores') {
+        if (!claims || claims.role !== 'gestor') {
+          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar relatórios.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const startDate = url.searchParams.get('start_date');
+        const endDate = url.searchParams.get('end_date');
+
+        let sql = `
+          SELECT 
+            m.id AS monitor_id, 
+            m.nome AS monitor_nome, 
+            COALESCE(SUM(ra.horas_duracao * 2), 0)::numeric(10,2) AS horas_planejamento
+          FROM monitor m
+          LEFT JOIN registro_atendimento ra ON m.id = ra.monitor_id
+        `;
+        
+        const joinConditions: string[] = [];
+        const values: any[] = [];
+
+        if (startDate) {
+          values.push(startDate);
+          joinConditions.push(`ra.created_at >= $${values.length}::timestamp`);
+        }
+        if (endDate) {
+          values.push(endDate + ' 23:59:59.999');
+          joinConditions.push(`ra.created_at <= $${values.length}::timestamp`);
+        }
+
+        if (joinConditions.length > 0) {
+          sql = sql.replace('ON m.id = ra.monitor_id', 'ON m.id = ra.monitor_id AND ' + joinConditions.join(' AND '));
+        }
+
+        sql += ` WHERE m.role = 'monitor' GROUP BY m.id, m.nome ORDER BY horas_planejamento DESC, m.nome ASC`;
+
+        const { rows } = await client.query(sql, values);
+        return new Response(JSON.stringify(rows), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      } else if (resource === 'relatorios/alunos') {
+        if (!claims || claims.role !== 'gestor') {
+          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar relatórios.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const startDate = url.searchParams.get('start_date');
+        const endDate = url.searchParams.get('end_date');
+
+        let sql = `
+          SELECT 
+            matricula, 
+            nome, 
+            COALESCE(SUM(horas_duracao), 0)::numeric(10,2) AS horas_consumidas
+          FROM registro_atendimento
+        `;
+        
+        const values: any[] = [];
+        const whereClauses: string[] = [];
+
+        if (startDate) {
+          values.push(startDate);
+          whereClauses.push(`created_at >= $${values.length}::timestamp`);
+        }
+        if (endDate) {
+          values.push(endDate + ' 23:59:59.999');
+          whereClauses.push(`created_at <= $${values.length}::timestamp`);
+        }
+
+        if (whereClauses.length > 0) {
+          sql += ' WHERE ' + whereClauses.join(' AND ');
+        }
+
+        sql += ` GROUP BY matricula, nome ORDER BY horas_consumidas DESC, nome ASC`;
+
+        const { rows } = await client.query(sql, values);
         return new Response(JSON.stringify(rows), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }

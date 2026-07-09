@@ -6,12 +6,18 @@ import MonitorProfile from '../pages/MonitorProfile.vue';
 import WeeklySubmission from '../pages/WeeklySubmission.vue';
 import ManagerDashboard from '../pages/ManagerDashboard.vue';
 import CadastroMonitor from '../components/CadastroMonitor.vue';
+import MonitoriaRapida from '../pages/MonitoriaRapida.vue';
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/atendimento-rapido',
+    name: 'MonitoriaRapida',
+    component: MonitoriaRapida
   },
   {
     path: '/cadastro',
