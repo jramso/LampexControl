@@ -1,16 +1,65 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import AuditPanel from '../components/AuditPanel.vue';
 import MeetingHeatmap from '../components/MeetingHeatmap.vue';
 import TriagemPanel from '../components/TriagemPanel.vue';
 import ReportsPanel from '../components/ReportsPanel.vue';
 import { exportToSRC } from '../services/srcExport';
+import { apiClient } from '../services/apiClient';
+import { updateMonitorRole } from '../services/apiService';
 
-const activeTab = ref<'audit' | 'heatmap' | 'triagem' | 'relatorios'>('audit');
+const activeTab = ref<'audit' | 'heatmap' | 'triagem' | 'relatorios' | 'gestores'>('audit');
+
+const currentUserRole = ref(localStorage.getItem('lampex_user_role') || '');
+const isGestorFixo = computed(() => currentUserRole.value === 'gestor_fixo');
+
+// State for gestores temporarios
+const tempGestores = ref<any[]>([]);
+const isLoadingGestores = ref(false);
+const gestoresError = ref('');
+const gestoresSuccess = ref('');
+
+const fetchTempGestores = async () => {
+  isLoadingGestores.value = true;
+  gestoresError.value = '';
+  try {
+    const { data, error } = await apiClient
+      .from('usuario')
+      .select('id, nome, email, role')
+      .in('role', ['voluntario', 'gestor_temporario'])
+      .order('nome', { ascending: true });
+
+    if (error) throw error;
+    tempGestores.value = data || [];
+  } catch (err: any) {
+    gestoresError.value = 'Erro ao carregar gestores: ' + err.message;
+  } finally {
+    isLoadingGestores.value = false;
+  }
+};
+
+const toggleRole = async (monitor: any) => {
+  gestoresError.value = '';
+  gestoresSuccess.value = '';
+  const newRole = monitor.role === 'gestor_temporario' ? 'voluntario' : 'gestor_temporario';
+  try {
+    await updateMonitorRole(monitor.id, newRole);
+    gestoresSuccess.value = `Cargo de ${monitor.nome} atualizado para ${newRole === 'gestor_temporario' ? 'Gestor Temporário' : 'Voluntário'} com sucesso!`;
+    await fetchTempGestores();
+  } catch (err: any) {
+    gestoresError.value = err.message || 'Erro ao atualizar cargo do gestor.';
+  }
+};
 
 const handleExport = async () => {
   await exportToSRC();
 };
+
+onMounted(() => {
+  if (isGestorFixo.value) {
+    fetchTempGestores();
+  }
+});
 </script>
 
 <template>
@@ -61,6 +110,14 @@ const handleExport = async () => {
       >
         📊 Relatórios
       </button>
+      <button 
+        v-if="isGestorFixo"
+        @click="activeTab = 'gestores'"
+        class="tab-btn" 
+        :class="{ active: activeTab === 'gestores' }"
+      >
+        👥 Gestão de Cargos
+      </button>
     </div>
 
     <!-- Conteúdo da Aba Ativa -->
@@ -69,6 +126,73 @@ const handleExport = async () => {
       <MeetingHeatmap v-if="activeTab === 'heatmap'" />
       <TriagemPanel v-if="activeTab === 'triagem'" />
       <ReportsPanel v-if="activeTab === 'relatorios'" />
+      
+      <!-- Painel de Gestão de Cargos Temporários (T016) -->
+      <div v-if="activeTab === 'gestores' && isGestorFixo" class="glass-card">
+        <h3 style="color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+          Atribuição de Gestor Temporário
+        </h3>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem;">
+          Atribua permissões de coordenação temporária para Bruno Gestor e Emmanuel Gestor. Gestores temporários podem auditar horas, triar novos candidatos e gerar relatórios.
+        </p>
+
+        <div v-if="isLoadingGestores" style="color: var(--text-secondary); font-style: italic;">
+          Carregando gestores...
+        </div>
+        <div v-else style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.9rem;">
+                <th style="padding: 1rem 0.75rem;">Nome</th>
+                <th style="padding: 1rem 0.75rem;">E-mail</th>
+                <th style="padding: 1rem 0.75rem;">Cargo Atual</th>
+                <th style="padding: 1rem 0.75rem; text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="monitor in tempGestores" :key="monitor.id" style="border-bottom: 1px solid var(--border-color); font-size: 0.95rem;">
+                <td style="padding: 1rem 0.75rem; color: var(--text-primary); font-weight: 500;">
+                  {{ monitor.nome }}
+                </td>
+                <td style="padding: 1rem 0.75rem; color: var(--text-secondary);">
+                  {{ monitor.email }}
+                </td>
+                <td style="padding: 1rem 0.75rem;">
+                  <span 
+                    :style="{
+                      color: monitor.role === 'gestor_temporario' ? 'var(--color-primary)' : monitor.role === 'gestor_fixo' ? 'var(--accent-green)' : 'var(--text-secondary)',
+                      fontWeight: '600'
+                    }"
+                  >
+                    {{ monitor.role === 'gestor_temporario' ? 'Gestor Temporário' : monitor.role === 'gestor_fixo' ? 'Gestor Fixo' : 'Voluntário' }}
+                  </span>
+                </td>
+                <td style="padding: 1rem 0.75rem; text-align: right;">
+                  <button 
+                    v-if="monitor.role !== 'gestor_fixo'"
+                    type="button" 
+                    @click="toggleRole(monitor)" 
+                    class="btn-primary" 
+                    style="padding: 0.4rem 1.25rem; font-size: 0.85rem;"
+                  >
+                    {{ monitor.role === 'gestor_temporario' ? 'Revogar Gestão' : 'Promover a Gestor' }}
+                  </button>
+                  <span v-else style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic; padding-right: 0.5rem;">
+                    Gestor Permanente
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="gestoresError" style="color: var(--accent-red); margin-top: 1.5rem; font-weight: 500;">
+          ⚠️ {{ gestoresError }}
+        </div>
+        <div v-if="gestoresSuccess" style="color: var(--accent-green); margin-top: 1.5rem; font-weight: 500;">
+          ✓ {{ gestoresSuccess }}
+        </div>
+      </div>
     </div>
   </div>
 </template>

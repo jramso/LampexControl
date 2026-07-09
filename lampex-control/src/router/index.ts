@@ -38,19 +38,19 @@ const routes = [
     path: '/perfil',
     name: 'MonitorProfile',
     component: MonitorProfile,
-    meta: { requiresAuth: true, allowedRoles: ['monitor', 'gestor'] }
+    meta: { requiresAuth: true, allowedRoles: ['voluntario', 'professor', 'gestor_fixo', 'gestor_temporario'] }
   },
   {
     path: '/submissao',
     name: 'WeeklySubmission',
     component: WeeklySubmission,
-    meta: { requiresAuth: true, allowedRoles: ['monitor'] }
+    meta: { requiresAuth: true, allowedRoles: ['voluntario', 'professor'] }
   },
   {
     path: '/dashboard',
     name: 'ManagerDashboard',
     component: ManagerDashboard,
-    meta: { requiresAuth: true, allowedRoles: ['gestor'] }
+    meta: { requiresAuth: true, allowedRoles: ['gestor_fixo', 'gestor_temporario'] }
   }
 ];
 
@@ -90,8 +90,8 @@ router.beforeEach((to, _from, next) => {
 
     const allowedRoles = to.meta.allowedRoles as string[];
     if (allowedRoles && !allowedRoles.includes(role)) {
-      // Se não autorizado, redireciona o monitor para seu perfil ou home
-      return next({ name: role === 'monitor' ? 'MonitorProfile' : 'Home' });
+      // Se não autorizado, redireciona o voluntário/professor para seu perfil ou home
+      return next({ name: ['voluntario', 'professor'].includes(role) ? 'MonitorProfile' : 'Home' });
     }
   }
 

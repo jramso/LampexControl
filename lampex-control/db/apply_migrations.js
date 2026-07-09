@@ -88,6 +88,18 @@ async function run() {
     await client.query(monitorMatriculaSql);
     console.log('Coluna matricula adicionada à tabela monitor com sucesso!');
 
+    // 10. Executar 010_role_replan_monitoring.sql
+    console.log('Aplicando migração 010_role_replan_monitoring.sql...');
+    const roleReplanSql = fs.readFileSync(path.join(baseDir, 'db/migrations/010_role_replan_monitoring.sql'), 'utf8');
+    await client.query(roleReplanSql);
+    console.log('Roles replanejadas, nova tabela monitoria_professor criada com sucesso!');
+
+    // 11. Executar 011_rename_monitor_to_usuario.sql
+    console.log('Aplicando migração 011_rename_monitor_to_usuario.sql...');
+    const renameToUsuarioSql = fs.readFileSync(path.join(baseDir, 'db/migrations/011_rename_monitor_to_usuario.sql'), 'utf8');
+    await client.query(renameToUsuarioSql);
+    console.log('Tabela monitor renomeada para usuario e dependências atualizadas!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

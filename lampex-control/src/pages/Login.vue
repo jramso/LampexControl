@@ -55,7 +55,7 @@ const handleLogin = async () => {
       setAuthHeader(token);
 
       const { data: monitorData } = await apiClient
-        .from('monitor')
+        .from('usuario')
         .select('nome')
         .eq('id', claims.id)
         .single();
@@ -72,7 +72,7 @@ const handleLogin = async () => {
       if (redirectPath) {
         router.push(redirectPath);
       } else {
-        router.push(claims.role === 'gestor' ? { name: 'ManagerDashboard' } : { name: 'MonitorProfile' });
+        router.push((claims.role === 'gestor_fixo' || claims.role === 'gestor_temporario' || claims.role === 'gestor') ? { name: 'ManagerDashboard' } : { name: 'MonitorProfile' });
       }
     } else {
       errorMessage.value = 'Erro ao processar token de autenticação.';

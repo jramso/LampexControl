@@ -14,7 +14,7 @@ INSERT INTO monitor (
     'Bruno Gestor', 
     'bruno@ifes.edu.br', 
     crypt('lampex123', gen_salt('bf')), 
-    'gestor', 
+    'gestor_fixo', 
     '27999999999', 
     'WhatsApp', 
     true
@@ -23,7 +23,7 @@ INSERT INTO monitor (
     'Emmanuel Gestor', 
     'emmanuel@ifes.edu.br', 
     crypt('lampex123', gen_salt('bf')), 
-    'gestor', 
+    'gestor_fixo', 
     '27999999999', 
     'WhatsApp', 
     true
@@ -32,7 +32,7 @@ INSERT INTO monitor (
     'Gestor', 
     'gestor@ifes.edu.br', 
     crypt('lampex123', gen_salt('bf')), 
-    'gestor', 
+    'gestor_fixo', 
     '27999999999', 
     'WhatsApp', 
     true

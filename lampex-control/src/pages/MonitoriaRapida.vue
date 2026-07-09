@@ -15,9 +15,11 @@ const monitors = ref<Monitor[]>([]);
 const selectedMonitorId = ref('');
 const matricula = ref('');
 const nome = ref('');
-const modalidade = ref<'Presencial' | 'Online'>('Presencial');
+const modalidade = ref<'Presencial' | 'Online' | 'Presencial com Professor'>('Presencial');
 const localOuLink = ref('Laboratório 205');
 const horasDuracao = ref<number | ''>('');
+const codigoMonitor = ref('');
+const senhaAula = ref('');
 
 const isLoadingMonitors = ref(false);
 const isSubmitting = ref(false);
@@ -58,14 +60,22 @@ watch(modalidade, (newVal) => {
       localOuLink.value = 'Laboratório 205';
     }
   }
+  if (newVal !== 'Presencial com Professor') {
+    senhaAula.value = '';
+  }
 });
 
 const handleSubmit = async () => {
   errorMessage.value = '';
   successMessage.value = '';
 
-  if (!selectedMonitorId.value || !matricula.value || !nome.value || !modalidade.value || !localOuLink.value || horasDuracao.value === '') {
+  if (!selectedMonitorId.value || !matricula.value || !nome.value || !modalidade.value || !localOuLink.value || horasDuracao.value === '' || !codigoMonitor.value) {
     errorMessage.value = 'Por favor, preencha todos os campos obrigatórios.';
+    return;
+  }
+
+  if (modalidade.value === 'Presencial com Professor' && !senhaAula.value) {
+    errorMessage.value = 'Por favor, insira a senha de aula fornecida pelo professor.';
     return;
   }
 
@@ -90,7 +100,9 @@ const handleSubmit = async () => {
       nome: nome.value,
       modalidade: modalidade.value,
       local_ou_link: localOuLink.value,
-      horas_duracao: hours
+      horas_duracao: hours,
+      codigo_monitor: codigoMonitor.value.trim(),
+      senha_aula: modalidade.value === 'Presencial com Professor' ? senhaAula.value.trim() : undefined
     });
 
     successMessage.value = 'Atendimento registrado com sucesso! Obrigado pela confirmação.';
@@ -100,7 +112,8 @@ const handleSubmit = async () => {
     nome.value = '';
     localOuLink.value = modalidade.value === 'Online' ? 'Online' : 'Laboratório 205';
     horasDuracao.value = '';
-    // Manter o monitor selecionado caso o QR Code seja do mesmo monitor atendendo outros alunos
+    codigoMonitor.value = '';
+    senhaAula.value = '';
   } catch (err: any) {
     errorMessage.value = err.message || 'Erro ao registrar atendimento. Tente novamente.';
   } finally {
@@ -117,7 +130,7 @@ const handleSubmit = async () => {
         Confirmação de Atendimento (QR Code)
       </h2>
       <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem;">
-        Preencha os campos abaixo para validar digitalmente a realização do seu atendimento no laboratório.
+        Preencha os campos abaixo para validar digitalmente a realização do seu atendimento.
       </p>
 
       <div v-if="isLoadingMonitors" style="text-align: center; padding: 2rem 0; color: var(--text-secondary);">
@@ -125,14 +138,20 @@ const handleSubmit = async () => {
       </div>
 
       <form v-else @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label class="form-label">Monitor que realizou o atendimento *</label>
-          <select v-model="selectedMonitorId" class="form-select" required>
-            <option value="" disabled selected>Selecione o monitor</option>
-            <option v-for="monitor in monitors" :key="monitor.id" :value="monitor.id">
-              {{ monitor.nome }} (Código: {{ monitor.matricula ? monitor.matricula.slice(-4) : 'N/A' }})
-            </option>
-          </select>
+        <div class="form-group responsive-grid-2" style="gap: 1rem;">
+          <div>
+            <label class="form-label">Monitor que realizou o atendimento *</label>
+            <select v-model="selectedMonitorId" class="form-select" required>
+              <option value="" disabled selected>Selecione o monitor</option>
+              <option v-for="monitor in monitors" :key="monitor.id" :value="monitor.id">
+                {{ monitor.nome }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Código de Segurança do Monitor *</label>
+            <input v-model="codigoMonitor" type="text" class="form-input" placeholder="4 últimos dígitos da matrícula" maxlength="4" required />
+          </div>
         </div>
 
         <div class="form-group responsive-grid-2" style="gap: 1rem;">
@@ -152,6 +171,7 @@ const handleSubmit = async () => {
             <select v-model="modalidade" class="form-select" required>
               <option value="Presencial">Presencial</option>
               <option value="Online">Online</option>
+              <option value="Presencial com Professor">Presencial com Professor</option>
             </select>
           </div>
           <div>
@@ -160,13 +180,24 @@ const handleSubmit = async () => {
           </div>
         </div>
 
-        <div v-if="modalidade === 'Presencial'" class="form-group">
+        <div v-if="modalidade === 'Presencial' || modalidade === 'Presencial com Professor'" class="form-group">
           <label class="form-label">Local Físico do Atendimento *</label>
           <input 
             v-model="localOuLink" 
             type="text" 
             class="form-input" 
             placeholder="Ex: Laboratório 205, Sala 103" 
+            required 
+          />
+        </div>
+
+        <div v-if="modalidade === 'Presencial com Professor'" class="form-group">
+          <label class="form-label">Senha de Aula (Fornecida pelo Professor) *</label>
+          <input 
+            v-model="senhaAula" 
+            type="password" 
+            class="form-input" 
+            placeholder="Digite a senha de aula" 
             required 
           />
         </div>

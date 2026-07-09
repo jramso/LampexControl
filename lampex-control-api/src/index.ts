@@ -114,7 +114,14 @@ function getFilterValue(searchParams: URLSearchParams, key: string): string | nu
   if (param.startsWith('eq.')) {
     return param.substring(3);
   }
+  if (param.includes('.')) {
+    return null;
+  }
   return param;
+}
+
+function isGestor(role: string | undefined): boolean {
+  return role === 'gestor_fixo' || role === 'gestor_temporario' || role === 'gestor';
 }
 
 export default {
@@ -128,9 +135,10 @@ export default {
     }
 
     try {
-      const response = await handleRequest(request, env);
+      const response = await handleRequestWithRetry(request, env);
       return handleCors(response);
     } catch (err: any) {
+      console.error('Request failed:', err);
       return handleCors(
         new Response(JSON.stringify({ error: err.message || 'Erro interno do servidor.' }), {
           status: 500,
@@ -140,6 +148,29 @@ export default {
     }
   }
 };
+
+async function handleRequestWithRetry(request: Request, env: Env): Promise<Response> {
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    try {
+      const reqClone = attempt === 1 ? request.clone() : request;
+      return await handleRequest(reqClone as any, env);
+    } catch (err: any) {
+      const isConnError = err.message && (
+        err.message.includes('Connection terminated unexpectedly') || 
+        err.message.includes('terminated unexpectedly') ||
+        err.message.includes('unexpectedly')
+      );
+      if (attempt < 2 && isConnError) {
+        console.warn(`Attempt ${attempt} failed with connection error: ${err.message}. Retrying in 100ms...`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -198,7 +229,7 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
   try {
     const query = `
       SELECT id, nome, email, role, (senha_hash = crypt($2, senha_hash)) AS password_ok
-      FROM monitor
+      FROM usuario
       WHERE email = $1;
     `;
     const { rows } = await client.query(query, [email, password]);
@@ -338,7 +369,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         });
 
       } else if (resourceParts[0] === 'voluntarios' && resourceParts.length === 3 && resourceParts[2] === 'aprovar') {
-        if (!claims || claims.role !== 'gestor') {
+        if (!claims || !isGestor(claims.role)) {
           return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem aprovar candidatos.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
@@ -368,10 +399,10 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           });
         }
 
-        // Check if email already exists in monitor before migrating
-        const { rows: existingMonitor } = await client.query('SELECT 1 FROM monitor WHERE email = $1', [voluntario.email]);
+        // Check if email already exists in usuario before migrating
+        const { rows: existingMonitor } = await client.query('SELECT 1 FROM usuario WHERE email = $1', [voluntario.email]);
         if (existingMonitor.length > 0) {
-          return new Response(JSON.stringify({ error: 'Este e-mail já está cadastrado na tabela de monitores.' }), {
+          return new Response(JSON.stringify({ error: 'Este e-mail já está cadastrado na tabela de usuários.' }), {
             status: 409,
             headers: { 'Content-Type': 'application/json' }
           });
@@ -388,8 +419,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
           const defaultPassword = `Lampex@${voluntario.matricula}`;
           const insertQuery = `
-            INSERT INTO monitor (nome, email, senha_hash, telefone, permite_exibir_contato, role, matricula)
-            VALUES ($1, $2, public.crypt($3, public.gen_salt('bf')), $4, FALSE, 'monitor', $5)
+            INSERT INTO usuario (nome, email, senha_hash, telefone, permite_exibir_contato, role, matricula)
+            VALUES ($1, $2, public.crypt($3, public.gen_salt('bf')), $4, FALSE, 'voluntario', $5)
             RETURNING id
           `;
           const { rows: monitorRows } = await client.query(insertQuery, [
@@ -400,7 +431,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
           return new Response(JSON.stringify({
             success: true,
-            message: 'Candidato aprovado e monitor criado com sucesso.',
+            message: 'Candidato aprovado e voluntário criado com sucesso.',
             monitor_id: monitorRows[0].id
           }), {
             status: 200,
@@ -416,7 +447,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         }
 
       } else if (resourceParts[0] === 'voluntarios' && resourceParts.length === 3 && resourceParts[2] === 'rejeitar') {
-        if (!claims || claims.role !== 'gestor') {
+        if (!claims || !isGestor(claims.role)) {
           return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem rejeitar candidatos.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
@@ -499,10 +530,10 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
       } else if (resource === 'atendimentos/registrar') {
         const body: any = await request.json();
         const payload = Array.isArray(body) ? body[0] : body;
-        const { monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao } = payload;
+        const { monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, codigo_monitor, senha_aula } = payload;
 
-        if (!monitor_id || !matricula || !nome || !modalidade || !local_ou_link || horas_duracao === undefined) {
-          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios.' }), {
+        if (!monitor_id || !matricula || !nome || !modalidade || !local_ou_link || horas_duracao === undefined || !codigo_monitor) {
+          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios, incluindo o código do monitor.' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
@@ -516,15 +547,15 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           });
         }
 
-        if (modalidade !== 'Presencial' && modalidade !== 'Online') {
-          return new Response(JSON.stringify({ error: 'Modalidade deve ser "Presencial" ou "Online".' }), {
+        if (modalidade !== 'Presencial' && modalidade !== 'Online' && modalidade !== 'Presencial com Professor') {
+          return new Response(JSON.stringify({ error: 'Modalidade inválida.' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
 
-        // Verify if monitor exists
-        const checkMonitor = await client.query('SELECT 1 FROM monitor WHERE id = $1', [monitor_id]);
+        // Verify if monitor exists and fetch their matricula and role
+        const checkMonitor = await client.query('SELECT matricula, role FROM usuario WHERE id = $1', [monitor_id]);
         if (checkMonitor.rows.length === 0) {
           return new Response(JSON.stringify({ error: 'Monitor não encontrado.' }), {
             status: 400,
@@ -532,13 +563,89 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           });
         }
 
+        const monitor = checkMonitor.rows[0];
+
+        // Validate the last 4 digits of the monitor's matrícula
+        if (!monitor.matricula || monitor.matricula.slice(-4) !== codigo_monitor) {
+          return new Response(JSON.stringify({ error: 'Código do monitor inválido.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Additional validations for 'Presencial com Professor' modality
+        let monitoriaProfessorId: string | null = null;
+
+        if (modalidade === 'Presencial com Professor') {
+          if (!senha_aula) {
+            return new Response(JSON.stringify({ error: 'Senha de aula obrigatória para esta modalidade.' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // Query the active class/lesson code for the current day
+          const checkLesson = await client.query(
+            "SELECT id FROM monitoria_professor WHERE data_aula = CURRENT_DATE AND status = 'Ativo' AND senha_aula = $1 LIMIT 1",
+            [senha_aula]
+          );
+
+          if (checkLesson.rows.length === 0) {
+            return new Response(JSON.stringify({ error: 'Senha de aula inválida, expirada ou inexistente para o dia de hoje.' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          monitoriaProfessorId = checkLesson.rows[0].id;
+        }
+
         const query = `
-          INSERT INTO registro_atendimento (monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO registro_atendimento (monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, monitoria_professor_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *
         `;
-        const { rows } = await client.query(query, [monitor_id, matricula, nome, modalidade, local_ou_link, numericHours]);
+        const { rows } = await client.query(query, [monitor_id, matricula, nome, modalidade, local_ou_link, numericHours, monitoriaProfessorId]);
 
+        return new Response(JSON.stringify(rows[0]), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else if (resource === 'monitoria-professor') {
+        const allowedRoles = ['professor', 'voluntario', 'gestor_fixo', 'gestor_temporario'];
+        if (!claims || !allowedRoles.includes(claims.role)) {
+          return new Response(JSON.stringify({ error: 'Acesso negado.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        const body: any = await request.json();
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { senha_aula } = payload;
+        let { professor_id } = payload;
+        
+        if (!senha_aula) {
+          return new Response(JSON.stringify({ error: 'Senha de aula é obrigatória.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        
+        if (claims.role === 'professor') {
+          professor_id = claims.id;
+        } else if (!professor_id) {
+          return new Response(JSON.stringify({ error: 'ID do professor é obrigatório para monitores.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const query = `
+          INSERT INTO monitoria_professor (professor_id, senha_aula, status)
+          VALUES ($1, $2, 'Ativo')
+          RETURNING *
+        `;
+        const { rows } = await client.query(query, [professor_id, senha_aula]);
         return new Response(JSON.stringify(rows[0]), {
           status: 201,
           headers: { 'Content-Type': 'application/json' }
@@ -547,35 +654,168 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
     }
 
     // PATCH Requests
-    if (request.method === 'PATCH' && resource === 'monitor') {
-      const id = getFilterValue(url.searchParams, 'id');
-      if (!id) {
-        throw new Error('ID do monitor é obrigatório.');
+    if (request.method === 'PATCH') {
+      if (resource === 'monitor' || resource === 'usuario') {
+        const id = getFilterValue(url.searchParams, 'id');
+        if (!id) {
+          throw new Error('ID do usuário é obrigatório.');
+        }
+        const body: any = await request.json();
+        const payload = Array.isArray(body) ? body[0] : body;
+
+        let setClauses: string[] = [];
+        let params: any[] = [];
+
+        if (payload.nome !== undefined) {
+          params.push(payload.nome);
+          setClauses.push(`nome = $${params.length}`);
+        }
+        if (payload.telefone !== undefined) {
+          params.push(payload.telefone);
+          setClauses.push(`telefone = $${params.length}`);
+        }
+        if (payload.permite_exibir_contato !== undefined) {
+          params.push(payload.permite_exibir_contato);
+          setClauses.push(`permite_exibir_contato = $${params.length}`);
+        }
+        if (payload.plataforma_contato !== undefined) {
+          params.push(payload.plataforma_contato);
+          setClauses.push(`plataforma_contato = $${params.length}`);
+        }
+        if (payload.matriz_disponibilidade !== undefined) {
+          params.push(JSON.stringify(payload.matriz_disponibilidade));
+          setClauses.push(`matriz_disponibilidade = $${params.length}`);
+        }
+
+        if (payload.role !== undefined) {
+          if (!claims || claims.role !== 'gestor_fixo') {
+            return new Response(JSON.stringify({ error: 'Acesso negado. Apenas o gestor fixo pode alterar cargos de coordenação.' }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          const validRoles = ['voluntario', 'professor', 'gestor_fixo', 'gestor_temporario'];
+          if (!validRoles.includes(payload.role)) {
+            return new Response(JSON.stringify({ error: 'Cargo inválido.' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          params.push(payload.role);
+          setClauses.push(`role = $${params.length}`);
+        }
+
+        if (setClauses.length === 0) {
+          return new Response(JSON.stringify({ error: 'Nenhum campo para atualizar.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const query = `
+          UPDATE usuario 
+          SET ${setClauses.join(', ')} 
+          WHERE id = $${params.length + 1} 
+          RETURNING id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade
+        `;
+        params.push(id);
+        const { rows } = await client.query(query, params);
+
+        return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else if (resource === 'monitoria-professor') {
+        const allowedRoles = ['professor', 'voluntario', 'gestor_fixo', 'gestor_temporario'];
+        if (!claims || !allowedRoles.includes(claims.role)) {
+          return new Response(JSON.stringify({ error: 'Acesso negado.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        const id = getFilterValue(url.searchParams, 'id');
+        if (!id) {
+          throw new Error('ID da aula é obrigatório.');
+        }
+        const body: any = await request.json();
+        const payload = Array.isArray(body) ? body[0] : body;
+        const { status } = payload;
+        if (status !== 'Fechado') {
+          return new Response(JSON.stringify({ error: 'Apenas encerramento é permitido.' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        
+        let query = '';
+        let params = [];
+        if (claims.role === 'professor') {
+          query = `
+            UPDATE monitoria_professor
+            SET status = $1
+            WHERE id = $2 AND professor_id = $3
+            RETURNING *
+          `;
+          params = [status, id, claims.id];
+        } else {
+          query = `
+            UPDATE monitoria_professor
+            SET status = $1
+            WHERE id = $2
+            RETURNING *
+          `;
+          params = [status, id];
+        }
+        const { rows } = await client.query(query, params);
+        if (rows.length === 0) {
+          return new Response(JSON.stringify({ error: 'Aula não encontrada ou sem permissão.' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify(rows[0]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
-      const body: any = await request.json();
-      const payload = Array.isArray(body) ? body[0] : body;
-      const { nome, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade } = payload;
-
-      const query = `
-        UPDATE monitor 
-        SET nome = $1, telefone = $2, permite_exibir_contato = $3, plataforma_contato = $4, matriz_disponibilidade = $5 
-        WHERE id = $6 
-        RETURNING id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade
-      `;
-      const { rows } = await client.query(query, [
-        nome, telefone, permite_exibir_contato, plataforma_contato, JSON.stringify(matriz_disponibilidade), id
-      ]);
-
-      return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
     }
 
     // GET Requests
     if (request.method === 'GET') {
-      if (resource === 'voluntarios/pendentes') {
-        if (!claims || claims.role !== 'gestor') {
+      if (resource === 'monitoria-professor') {
+        const allowedRoles = ['professor', 'voluntario', 'gestor_fixo', 'gestor_temporario'];
+        if (!claims || !allowedRoles.includes(claims.role)) {
+          return new Response(JSON.stringify({ error: 'Acesso negado.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        let query = `
+          SELECT mp.id, mp.senha_aula, mp.data_aula, mp.status, mp.created_at, mp.professor_id, u.nome AS professor_nome
+          FROM monitoria_professor mp
+          JOIN usuario u ON mp.professor_id = u.id
+        `;
+        let params: any[] = [];
+        if (claims.role === 'professor') {
+          query += ` WHERE mp.professor_id = $1`;
+          params = [claims.id];
+        } else {
+          const profIdFilter = url.searchParams.get('professor_id');
+          if (profIdFilter) {
+            query += ` WHERE mp.professor_id = $1`;
+            params = [profIdFilter];
+          }
+        }
+        query += ` ORDER BY mp.created_at DESC`;
+
+        const { rows } = await client.query(query, params);
+        return new Response(JSON.stringify(rows), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else if (resource === 'voluntarios/pendentes') {
+        if (!claims || !isGestor(claims.role)) {
           return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar candidatos pendentes.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
@@ -594,7 +834,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           headers: { 'Content-Type': 'application/json' }
         });
       } else if (resource === 'relatorios/monitores') {
-        if (!claims || claims.role !== 'gestor') {
+        if (!claims || !isGestor(claims.role)) {
           return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar relatórios.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
@@ -604,32 +844,55 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         const startDate = url.searchParams.get('start_date');
         const endDate = url.searchParams.get('end_date');
 
-        let sql = `
-          SELECT 
-            m.id AS monitor_id, 
-            m.nome AS monitor_nome, 
-            COALESCE(SUM(ra.horas_duracao * 2), 0)::numeric(10,2) AS horas_planejamento
-          FROM monitor m
-          LEFT JOIN registro_atendimento ra ON m.id = ra.monitor_id
-        `;
-        
-        const joinConditions: string[] = [];
         const values: any[] = [];
+        let dateFilterRegular = '';
+        let dateFilterProfessor = '';
 
         if (startDate) {
           values.push(startDate);
-          joinConditions.push(`ra.created_at >= $${values.length}::timestamp`);
+          dateFilterRegular += ` AND created_at >= $${values.length}::timestamp`;
+          dateFilterProfessor += ` AND created_at >= $${values.length}::timestamp`;
         }
         if (endDate) {
           values.push(endDate + ' 23:59:59.999');
-          joinConditions.push(`ra.created_at <= $${values.length}::timestamp`);
+          dateFilterRegular += ` AND created_at <= $${values.length}::timestamp`;
+          dateFilterProfessor += ` AND created_at <= $${values.length}::timestamp`;
         }
 
-        if (joinConditions.length > 0) {
-          sql = sql.replace('ON m.id = ra.monitor_id', 'ON m.id = ra.monitor_id AND ' + joinConditions.join(' AND '));
-        }
-
-        sql += ` WHERE m.role = 'monitor' GROUP BY m.id, m.nome ORDER BY horas_planejamento DESC, m.nome ASC`;
+        const sql = `
+          WITH regular_att AS (
+            SELECT 
+              monitor_id,
+              COALESCE(SUM(horas_duracao * 2), 0) AS horas
+            FROM registro_atendimento
+            WHERE monitoria_professor_id IS NULL ${dateFilterRegular}
+            GROUP BY monitor_id
+          ),
+          professor_att AS (
+            SELECT 
+              ra.monitor_id,
+              COALESCE(SUM(session_duration * 2), 0) AS horas
+            FROM (
+              SELECT 
+                monitor_id,
+                monitoria_professor_id,
+                MAX(horas_duracao) AS session_duration
+              FROM registro_atendimento
+              WHERE monitoria_professor_id IS NOT NULL ${dateFilterProfessor}
+              GROUP BY monitor_id, monitoria_professor_id
+            ) ra
+            GROUP BY ra.monitor_id
+          )
+          SELECT 
+            m.id AS monitor_id, 
+            m.nome AS monitor_nome, 
+            (COALESCE(r.horas, 0) + COALESCE(p.horas, 0))::numeric(10,2) AS horas_planejamento
+          FROM usuario m
+          LEFT JOIN regular_att r ON m.id = r.monitor_id
+          LEFT JOIN professor_att p ON m.id = p.monitor_id
+          WHERE m.role IN ('voluntario', 'professor')
+          ORDER BY horas_planejamento DESC, m.nome ASC
+        `;
 
         const { rows } = await client.query(sql, values);
         return new Response(JSON.stringify(rows), {
@@ -638,7 +901,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         });
 
       } else if (resource === 'relatorios/alunos') {
-        if (!claims || claims.role !== 'gestor') {
+        if (!claims || !isGestor(claims.role)) {
           return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar relatórios.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
@@ -684,6 +947,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
       let tableName = resource;
       if (resource === 'solicitacao_monitoria') tableName = 'solicitacao_monitoria';
       if (resource === 'view_reuniao_geral') tableName = 'view_heatmap_disponibilidade';
+      if (resource === 'monitor') tableName = 'usuario';
 
       let sql = '';
       let values: any[] = [];
@@ -710,8 +974,23 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
       const idIn = url.searchParams.get('id');
       if (idIn && idIn.startsWith('in.(') && idIn.endsWith(')')) {
         const list = idIn.substring(4, idIn.length - 1).split(',').map(s => s.trim());
-        values.push(list);
-        whereClauses.push(`id = ANY($${values.length})`);
+        const placeholders = list.map((_, idx) => `$${values.length + idx + 1}`);
+        values.push(...list);
+        whereClauses.push(`id IN (${placeholders.join(', ')})`);
+      }
+
+      const roleEq = getFilterValue(url.searchParams, 'role');
+      if (roleEq) {
+        values.push(roleEq);
+        whereClauses.push(`role = $${values.length}`);
+      }
+
+      const roleIn = url.searchParams.get('role');
+      if (roleIn && roleIn.startsWith('in.(') && roleIn.endsWith(')')) {
+        const list = roleIn.substring(4, roleIn.length - 1).split(',').map(s => s.trim());
+        const placeholders = list.map((_, idx) => `$${values.length + idx + 1}`);
+        values.push(...list);
+        whereClauses.push(`role IN (${placeholders.join(', ')})`);
       }
 
       if (tableName === 'registro_semanal') {
@@ -741,7 +1020,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
                   '[]'::jsonb
               ) AS item_atividade
           FROM registro_semanal r
-          JOIN monitor m ON r.monitor_id = m.id
+          JOIN usuario m ON r.monitor_id = m.id
           LEFT JOIN item_atividade a ON a.registro_semanal_id = r.id
         `;
         if (whereClauses.length > 0) {
@@ -754,8 +1033,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         if (whereClauses.length > 0) {
           sql += ` WHERE ` + whereClauses.join(' AND ');
         }
-      } else if (tableName === 'monitor') {
-        sql = `SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade FROM monitor`;
+      } else if (tableName === 'monitor' || tableName === 'usuario') {
+        sql = `SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade, matricula FROM usuario`;
         if (whereClauses.length > 0) {
           sql += ` WHERE ` + whereClauses.join(' AND ');
         }
@@ -801,6 +1080,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         }
       }
 
+      console.log('Executing SQL:', sql, 'with values:', JSON.stringify(values));
       const { rows } = await client.query(sql, values);
       return new Response(JSON.stringify(isSingleObject ? (rows[0] || null) : rows), {
         status: 200,

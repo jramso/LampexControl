@@ -72,7 +72,7 @@ const handleLogout = () => {
         <!-- Links Dinâmicos por Perfil -->
         <template v-if="isLoggedIn">
           <router-link 
-            v-if="userRole === 'monitor'" 
+            v-if="userRole === 'voluntario' || userRole === 'professor'" 
             :to="{ name: 'WeeklySubmission' }" 
             class="nav-link" 
             active-class="active"
@@ -82,7 +82,7 @@ const handleLogout = () => {
           </router-link>
           
           <router-link 
-            v-if="userRole === 'gestor'" 
+            v-if="userRole === 'gestor_fixo' || userRole === 'gestor_temporario'" 
             :to="{ name: 'ManagerDashboard' }" 
             class="nav-link" 
             active-class="active"

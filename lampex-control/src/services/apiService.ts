@@ -170,9 +170,11 @@ export interface AttendanceRegistrationPayload {
   monitor_id: string;
   matricula: string;
   nome: string;
-  modalidade: 'Presencial' | 'Online';
+  modalidade: 'Presencial' | 'Online' | 'Presencial com Professor';
   local_ou_link: string;
   horas_duracao: number;
+  codigo_monitor: string;
+  senha_aula?: string;
 }
 
 export async function registerAttendance(payload: AttendanceRegistrationPayload) {
@@ -236,11 +238,83 @@ export async function getStudentReports(startDate?: string, endDate?: string) {
 // 12. Obter lista de monitores (usando apiClient existente)
 export async function getActiveMonitors() {
   const { data, error } = await apiClient
-    .from('monitor')
+    .from('usuario')
     .select('id, nome, matricula')
-    .eq('role', 'monitor')
+    .in('role', ['voluntario', 'professor'])
     .order('nome', { ascending: true });
 
   if (error) throw error;
   return data || [];
+}
+
+// 13. Atualizar Cargo do Monitor (PATCH /monitor)
+export async function updateMonitorRole(id: string, role: 'voluntario' | 'professor' | 'gestor_fixo' | 'gestor_temporario') {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/usuario?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ role })
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao atualizar cargo.');
+  }
+  return data;
+}
+
+// 14. Gerenciamento de Aulas do Professor
+export async function createClassPasscode(senha_aula: string, professor_id?: string) {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/monitoria-professor`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ senha_aula, professor_id })
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao criar senha de aula.');
+  }
+  return data;
+}
+
+export async function getClassPasscodes() {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/monitoria-professor`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao carregar senhas de aula.');
+  }
+  return data;
+}
+
+export async function closeClassPasscode(id: string) {
+  const token = localStorage.getItem('lampex_jwt_token');
+  const response = await fetch(`${getApiUrl()}/monitoria-professor?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status: 'Fechado' })
+  });
+  
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao encerrar recebimento da aula.');
+  }
+  return data;
 }
