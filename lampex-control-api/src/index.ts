@@ -530,10 +530,10 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
       } else if (resource === 'atendimentos/registrar') {
         const body: any = await request.json();
         const payload = Array.isArray(body) ? body[0] : body;
-        const { monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, codigo_monitor, senha_aula } = payload;
+        const { monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, codigo_monitor, senha_aula, acao_id } = payload;
 
-        if (!monitor_id || !matricula || !nome || !modalidade || !local_ou_link || horas_duracao === undefined || !codigo_monitor) {
-          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios, incluindo o código do monitor.' }), {
+        if (!monitor_id || !matricula || !nome || !modalidade || !local_ou_link || horas_duracao === undefined || !codigo_monitor || !acao_id) {
+          return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios, incluindo a ação de extensão e o código do monitor.' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
@@ -575,6 +575,8 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
         // Additional validations for 'Presencial com Professor' modality
         let monitoriaProfessorId: string | null = null;
+        let senhaSessao: string | null = null;
+        let professorId: string | null = null;
 
         if (modalidade === 'Presencial com Professor') {
           if (!senha_aula) {
@@ -586,7 +588,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
           // Query the active class/lesson code for the current day
           const checkLesson = await client.query(
-            "SELECT id FROM monitoria_professor WHERE data_aula = CURRENT_DATE AND status = 'Ativo' AND senha_aula = $1 LIMIT 1",
+            "SELECT id, professor_id, senha_aula FROM monitoria_professor WHERE data_aula = CURRENT_DATE AND status = 'Ativo' AND senha_aula = $1 LIMIT 1",
             [senha_aula]
           );
 
@@ -598,14 +600,27 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           }
 
           monitoriaProfessorId = checkLesson.rows[0].id;
+          senhaSessao = checkLesson.rows[0].senha_aula;
+          professorId = checkLesson.rows[0].professor_id;
         }
 
         const query = `
-          INSERT INTO registro_atendimento (monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, monitoria_professor_id)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO registro_atendimento (monitor_id, matricula, nome, modalidade, local_ou_link, horas_duracao, monitoria_professor_id, acao_id, senha_sessao, professor_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           RETURNING *
         `;
-        const { rows } = await client.query(query, [monitor_id, matricula, nome, modalidade, local_ou_link, numericHours, monitoriaProfessorId]);
+        const { rows } = await client.query(query, [
+          monitor_id, 
+          matricula, 
+          nome, 
+          modalidade, 
+          local_ou_link, 
+          numericHours, 
+          monitoriaProfessorId,
+          acao_id,
+          senhaSessao,
+          professorId
+        ]);
 
         return new Response(JSON.stringify(rows[0]), {
           status: 201,
@@ -860,38 +875,51 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         }
 
         const sql = `
-          WITH regular_att AS (
+          WITH session_max AS (
             SELECT 
               monitor_id,
-              COALESCE(SUM(horas_duracao * 2), 0) AS horas
+              acao_id,
+              monitoria_professor_id,
+              MAX(horas_duracao) AS horas
+            FROM registro_atendimento
+            WHERE monitoria_professor_id IS NOT NULL ${dateFilterProfessor}
+            GROUP BY monitor_id, acao_id, monitoria_professor_id
+          ),
+          raw_hours AS (
+            SELECT 
+              monitor_id,
+              acao_id,
+              horas_duracao * 2 AS horas
             FROM registro_atendimento
             WHERE monitoria_professor_id IS NULL ${dateFilterRegular}
-            GROUP BY monitor_id
-          ),
-          professor_att AS (
+            
+            UNION ALL
+            
             SELECT 
-              ra.monitor_id,
-              COALESCE(SUM(session_duration * 2), 0) AS horas
-            FROM (
-              SELECT 
-                monitor_id,
-                monitoria_professor_id,
-                MAX(horas_duracao) AS session_duration
-              FROM registro_atendimento
-              WHERE monitoria_professor_id IS NOT NULL ${dateFilterProfessor}
-              GROUP BY monitor_id, monitoria_professor_id
-            ) ra
-            GROUP BY ra.monitor_id
+              monitor_id,
+              acao_id,
+              horas * 2 AS horas
+            FROM session_max
+          ),
+          grouped_hours AS (
+            SELECT 
+              monitor_id,
+              acao_id,
+              SUM(horas) AS total_horas
+            FROM raw_hours
+            GROUP BY monitor_id, acao_id
           )
           SELECT 
-            m.id AS monitor_id, 
-            m.nome AS monitor_nome, 
-            (COALESCE(r.horas, 0) + COALESCE(p.horas, 0))::numeric(10,2) AS horas_planejamento
+            ae.id AS acao_id,
+            ae.nome_acao AS acao_nome,
+            m.id AS monitor_id,
+            m.nome AS monitor_nome,
+            COALESCE(gh.total_horas, 0)::numeric(10,2) AS horas_planejamento
           FROM usuario m
-          LEFT JOIN regular_att r ON m.id = r.monitor_id
-          LEFT JOIN professor_att p ON m.id = p.monitor_id
+          JOIN acao_extensao ae ON m.acao_id = ae.id
+          LEFT JOIN grouped_hours gh ON m.id = gh.monitor_id AND gh.acao_id = ae.id
           WHERE m.role IN ('voluntario', 'professor')
-          ORDER BY horas_planejamento DESC, m.nome ASC
+          ORDER BY ae.nome_acao ASC, horas_planejamento DESC, m.nome ASC
         `;
 
         const { rows } = await client.query(sql, values);
@@ -902,7 +930,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
       } else if (resource === 'relatorios/alunos') {
         if (!claims || !isGestor(claims.role)) {
-          return new Response(JSON.stringify({ error: 'Acesso negado. Apenas gestores podem visualizar relatórios.' }), {
+          return new Response(JSON.stringify({ error: 'Acesso Find. Apenas gestores podem visualizar relatórios.' }), {
             status: 403,
             headers: { 'Content-Type': 'application/json' }
           });
@@ -913,10 +941,13 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
         let sql = `
           SELECT 
-            matricula, 
-            nome, 
-            COALESCE(SUM(horas_duracao), 0)::numeric(10,2) AS horas_consumidas
-          FROM registro_atendimento
+            ae.id AS acao_id,
+            ae.nome_acao AS acao_nome,
+            ra.matricula, 
+            ra.nome, 
+            COALESCE(SUM(ra.horas_duracao), 0)::numeric(10,2) AS horas_consumidas
+          FROM registro_atendimento ra
+          JOIN acao_extensao ae ON ra.acao_id = ae.id
         `;
         
         const values: any[] = [];
@@ -924,18 +955,18 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
 
         if (startDate) {
           values.push(startDate);
-          whereClauses.push(`created_at >= $${values.length}::timestamp`);
+          whereClauses.push(`ra.created_at >= $${values.length}::timestamp`);
         }
         if (endDate) {
           values.push(endDate + ' 23:59:59.999');
-          whereClauses.push(`created_at <= $${values.length}::timestamp`);
+          whereClauses.push(`ra.created_at <= $${values.length}::timestamp`);
         }
 
         if (whereClauses.length > 0) {
           sql += ' WHERE ' + whereClauses.join(' AND ');
         }
 
-        sql += ` GROUP BY matricula, nome ORDER BY horas_consumidas DESC, nome ASC`;
+        sql += ` GROUP BY ae.id, ae.nome_acao, ra.matricula, ra.nome ORDER BY ae.nome_acao ASC, horas_consumidas DESC, ra.nome ASC`;
 
         const { rows } = await client.query(sql, values);
         return new Response(JSON.stringify(rows), {
@@ -948,6 +979,7 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
       if (resource === 'solicitacao_monitoria') tableName = 'solicitacao_monitoria';
       if (resource === 'view_reuniao_geral') tableName = 'view_heatmap_disponibilidade';
       if (resource === 'monitor') tableName = 'usuario';
+      if (resource === 'acao_extensao' || resource === 'acao-extensao') tableName = 'acao_extensao';
 
       let sql = '';
       let values: any[] = [];
@@ -993,6 +1025,18 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
         whereClauses.push(`role IN (${placeholders.join(', ')})`);
       }
 
+      const acaoIdEq = getFilterValue(url.searchParams, 'acao_id');
+      if (acaoIdEq) {
+        values.push(acaoIdEq);
+        whereClauses.push(`acao_id = $${values.length}`);
+      }
+
+      const statusAcaoEq = getFilterValue(url.searchParams, 'status_acao');
+      if (statusAcaoEq) {
+        values.push(statusAcaoEq);
+        whereClauses.push(`status_acao = $${values.length}`);
+      }
+
       if (tableName === 'registro_semanal') {
         sql = `
           SELECT 
@@ -1034,7 +1078,12 @@ async function handleDatabaseRoute(resource: string, request: Request, env: Env,
           sql += ` WHERE ` + whereClauses.join(' AND ');
         }
       } else if (tableName === 'monitor' || tableName === 'usuario') {
-        sql = `SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade, matricula FROM usuario`;
+        sql = `SELECT id, nome, email, role, telefone, permite_exibir_contato, plataforma_contato, matriz_disponibilidade, matricula, acao_id FROM usuario`;
+        if (whereClauses.length > 0) {
+          sql += ` WHERE ` + whereClauses.join(' AND ');
+        }
+      } else if (tableName === 'acao_extensao') {
+        sql = `SELECT id, nome_acao, descricao, codigo_src, status_acao, created_at FROM acao_extensao`;
         if (whereClauses.length > 0) {
           sql += ` WHERE ` + whereClauses.join(' AND ');
         }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getActiveMonitors, registerAttendance } from '../services/apiService';
+import { getActiveMonitors, registerAttendance, getActionsOfExtension } from '../services/apiService';
 
 const route = useRoute();
 
@@ -9,8 +9,16 @@ interface Monitor {
   id: string;
   nome: string;
   matricula?: string;
+  acao_id?: string;
 }
 
+interface AcaoExtensao {
+  id: string;
+  nome_acao: string;
+}
+
+const acoes = ref<AcaoExtensao[]>([]);
+const selectedAcaoId = ref('');
 const monitors = ref<Monitor[]>([]);
 const selectedMonitorId = ref('');
 const matricula = ref('');
@@ -27,10 +35,15 @@ const errorMessage = ref('');
 const successMessage = ref('');
 
 // Pre-select monitor from query params if available
-const checkQueryParamMonitor = () => {
+const checkQueryParamMonitor = (allMonitors: Monitor[]) => {
   const queryMonitorId = route.query.monitor_id as string;
-  if (queryMonitorId && monitors.value.some(m => m.id === queryMonitorId)) {
-    selectedMonitorId.value = queryMonitorId;
+  if (queryMonitorId) {
+    const preSelected = allMonitors.find(m => m.id === queryMonitorId);
+    if (preSelected && preSelected.acao_id) {
+      selectedAcaoId.value = preSelected.acao_id;
+      monitors.value = allMonitors.filter(m => m.acao_id === preSelected.acao_id);
+      selectedMonitorId.value = queryMonitorId;
+    }
   }
 };
 
@@ -38,18 +51,32 @@ onMounted(async () => {
   isLoadingMonitors.value = true;
   errorMessage.value = '';
   try {
-    monitors.value = await getActiveMonitors();
-    checkQueryParamMonitor();
+    acoes.value = await getActionsOfExtension();
+    const allMonitors = await getActiveMonitors();
+    checkQueryParamMonitor(allMonitors);
   } catch (err: any) {
-    errorMessage.value = 'Não foi possível carregar a lista de monitores. Tente novamente mais tarde.';
+    errorMessage.value = 'Não foi possível carregar as informações iniciais. Tente novamente.';
   } finally {
     isLoadingMonitors.value = false;
   }
 });
 
-// Watch query params to update pre-selected monitor
-watch(() => route.query.monitor_id, () => {
-  checkQueryParamMonitor();
+// Watch selectedAcaoId to filter volunteers dynamically
+watch(selectedAcaoId, async (newAcaoId) => {
+  selectedMonitorId.value = '';
+  if (!newAcaoId) {
+    monitors.value = [];
+    return;
+  }
+
+  isLoadingMonitors.value = true;
+  try {
+    monitors.value = await getActiveMonitors(newAcaoId);
+  } catch (err: any) {
+    errorMessage.value = 'Não foi possível carregar a lista de voluntários para esta ação.';
+  } finally {
+    isLoadingMonitors.value = false;
+  }
 });
 
 watch(modalidade, (newVal) => {
@@ -69,8 +96,8 @@ const handleSubmit = async () => {
   errorMessage.value = '';
   successMessage.value = '';
 
-  if (!selectedMonitorId.value || !matricula.value || !nome.value || !modalidade.value || !localOuLink.value || horasDuracao.value === '' || !codigoMonitor.value) {
-    errorMessage.value = 'Por favor, preencha todos os campos obrigatórios.';
+  if (!selectedAcaoId.value || !selectedMonitorId.value || !matricula.value || !nome.value || !modalidade.value || !localOuLink.value || horasDuracao.value === '' || !codigoMonitor.value) {
+    errorMessage.value = 'Por favor, preencha todos os campos obrigatórios, incluindo a Ação de Extensão.';
     return;
   }
 
@@ -102,7 +129,8 @@ const handleSubmit = async () => {
       local_ou_link: localOuLink.value,
       horas_duracao: hours,
       codigo_monitor: codigoMonitor.value.trim(),
-      senha_aula: modalidade.value === 'Presencial com Professor' ? senhaAula.value.trim() : undefined
+      senha_aula: modalidade.value === 'Presencial com Professor' ? senhaAula.value.trim() : undefined,
+      acao_id: selectedAcaoId.value
     });
 
     successMessage.value = 'Atendimento registrado com sucesso! Obrigado pela confirmação.';
@@ -114,6 +142,7 @@ const handleSubmit = async () => {
     horasDuracao.value = '';
     codigoMonitor.value = '';
     senhaAula.value = '';
+    selectedMonitorId.value = '';
   } catch (err: any) {
     errorMessage.value = err.message || 'Erro ao registrar atendimento. Tente novamente.';
   } finally {
@@ -133,15 +162,25 @@ const handleSubmit = async () => {
         Preencha os campos abaixo para validar digitalmente a realização do seu atendimento.
       </p>
 
-      <div v-if="isLoadingMonitors" style="text-align: center; padding: 2rem 0; color: var(--text-secondary);">
-        Carregando lista de monitores...
+      <div v-if="isLoadingMonitors && acoes.length === 0" style="text-align: center; padding: 2rem 0; color: var(--text-secondary);">
+        Carregando lista de Ações de Extensão...
       </div>
 
       <form v-else @submit.prevent="handleSubmit">
+        <div class="form-group">
+          <label class="form-label">Ação de Extensão *</label>
+          <select v-model="selectedAcaoId" class="form-select" required>
+            <option value="" disabled selected>Selecione a Ação de Extensão</option>
+            <option v-for="acao in acoes" :key="acao.id" :value="acao.id">
+              {{ acao.nome_acao }}
+            </option>
+          </select>
+        </div>
+
         <div class="form-group responsive-grid-2" style="gap: 1rem;">
           <div>
             <label class="form-label">Monitor que realizou o atendimento *</label>
-            <select v-model="selectedMonitorId" class="form-select" required>
+            <select v-model="selectedMonitorId" class="form-select" :disabled="!selectedAcaoId" required>
               <option value="" disabled selected>Selecione o monitor</option>
               <option v-for="monitor in monitors" :key="monitor.id" :value="monitor.id">
                 {{ monitor.nome }}

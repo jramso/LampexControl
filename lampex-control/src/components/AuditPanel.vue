@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { apiClient } from '../services/apiClient';
+import { getActionsOfExtension } from '../services/apiService';
 
 const emit = defineEmits(['audited']);
 
@@ -9,6 +10,20 @@ const selectedSub = ref<any>(null);
 const isLoading = ref(true);
 const auditJustification = ref('');
 const isSubmitting = ref(false);
+const acoesMap = ref<Record<string, string>>({});
+
+const fetchAcoes = async () => {
+  try {
+    const acoes = await getActionsOfExtension();
+    const map: Record<string, string> = {};
+    for (const acao of acoes) {
+      map[acao.id] = acao.nome_acao;
+    }
+    acoesMap.value = map;
+  } catch (err) {
+    console.error('Erro ao carregar ações:', err);
+  }
+};
 
 const fetchSubmissions = async () => {
   isLoading.value = true;
@@ -18,7 +33,7 @@ const fetchSubmissions = async () => {
     // No PostgREST, podemos buscar os registros semanais com seus itens de atividade
     const { data, error } = await apiClient
       .from('registro_semanal')
-      .select('*, monitor(nome), item_atividade(*)');
+      .select('*, monitor(nome, acao_id), item_atividade(*)');
 
     if (!error && data) {
       // Como o PostgREST não faz join de tabelas distantes nativamente de forma simples na mesma query sem view,
@@ -40,7 +55,10 @@ const fetchSubmissions = async () => {
   }
 };
 
-onMounted(fetchSubmissions);
+onMounted(async () => {
+  await fetchAcoes();
+  await fetchSubmissions();
+});
 
 const calculateLiquidas = (tipo: string, brutas: number, url: string) => {
   const h = Number(brutas || 0);
@@ -135,7 +153,10 @@ const handleAudit = async (status: 'Aprovado' | 'Recusado') => {
             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
               <div>
                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Monitor</span>
-                <h4 style="color: var(--text-primary);">{{ selectedSub.monitor?.nome }}</h4>
+                <h4 style="color: var(--text-primary); margin-bottom: 0.25rem;">{{ selectedSub.monitor?.nome }}</h4>
+                <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">
+                  Ação: {{ acoesMap[selectedSub.monitor?.acao_id] || 'Sem Ação de Extensão' }}
+                </span>
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 0.8rem; color: var(--text-secondary);">Semana de Ref.</span>

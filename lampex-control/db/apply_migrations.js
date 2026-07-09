@@ -100,6 +100,18 @@ async function run() {
     await client.query(renameToUsuarioSql);
     console.log('Tabela monitor renomeada para usuario e dependências atualizadas!');
 
+    // 12. Executar 012_add_monitoria_professor_id_to_attendance.sql
+    console.log('Aplicando migração 012_add_monitoria_professor_id_to_attendance.sql...');
+    const addMonitoriaProfSql = fs.readFileSync(path.join(baseDir, 'db/migrations/012_add_monitoria_professor_id_to_attendance.sql'), 'utf8');
+    await client.query(addMonitoriaProfSql);
+    console.log('Coluna monitoria_professor_id adicionada à registro_atendimento!');
+
+    // 13. Executar 013_extension_governance.sql
+    console.log('Aplicando migração 013_extension_governance.sql...');
+    const extensionGovSql = fs.readFileSync(path.join(baseDir, 'db/migrations/013_extension_governance.sql'), 'utf8');
+    await client.query(extensionGovSql);
+    console.log('Governança de ações de extensão aplicada com sucesso!');
+
   } catch (err) {
     console.error('Erro na migração:', err);
   } finally {

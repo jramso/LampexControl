@@ -175,6 +175,7 @@ export interface AttendanceRegistrationPayload {
   horas_duracao: number;
   codigo_monitor: string;
   senha_aula?: string;
+  acao_id: string;
 }
 
 export async function registerAttendance(payload: AttendanceRegistrationPayload) {
@@ -236,15 +237,32 @@ export async function getStudentReports(startDate?: string, endDate?: string) {
 }
 
 // 12. Obter lista de monitores (usando apiClient existente)
-export async function getActiveMonitors() {
-  const { data, error } = await apiClient
+export async function getActiveMonitors(acaoId?: string) {
+  let query = apiClient
     .from('usuario')
-    .select('id, nome, matricula')
-    .in('role', ['voluntario', 'professor'])
-    .order('nome', { ascending: true });
+    .select('id, nome, matricula, acao_id')
+    .in('role', ['voluntario', 'professor']);
+
+  if (acaoId) {
+    query = query.eq('acao_id', acaoId);
+  }
+
+  const { data, error } = await query.order('nome', { ascending: true });
 
   if (error) throw error;
   return data || [];
+}
+
+export async function getActionsOfExtension() {
+  const response = await fetch(`${getApiUrl()}/acao_extensao?status_acao=eq.Ativa`, {
+    method: 'GET'
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao carregar ações de extensão.');
+  }
+  return data;
 }
 
 // 13. Atualizar Cargo do Monitor (PATCH /monitor)

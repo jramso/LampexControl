@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { getMonitorReports, getStudentReports } from '../services/apiService';
 
 interface MonitorReportItem {
+  acao_id: string;
+  acao_nome: string;
   monitor_id: string;
   monitor_nome: string;
   horas_planejamento: string;
 }
 
 interface StudentReportItem {
+  acao_id: string;
+  acao_nome: string;
   matricula: string;
   nome: string;
   horas_consumidas: string;
@@ -70,6 +74,38 @@ const fetchReports = async () => {
   }
 };
 
+// Group monitor productivity by Action of Extension
+const monitorReportsByAcao = computed(() => {
+  const groups: Record<string, { acao_nome: string; items: MonitorReportItem[] }> = {};
+  for (const item of monitorReports.value) {
+    const acaoId = item.acao_id || 'sem-acao';
+    if (!groups[acaoId]) {
+      groups[acaoId] = {
+        acao_nome: item.acao_nome || 'Sem Ação de Extensão',
+        items: []
+      };
+    }
+    groups[acaoId].items.push(item);
+  }
+  return groups;
+});
+
+// Group student consumption by Action of Extension
+const studentReportsByAcao = computed(() => {
+  const groups: Record<string, { acao_nome: string; items: StudentReportItem[] }> = {};
+  for (const item of studentReports.value) {
+    const acaoId = item.acao_id || 'sem-acao';
+    if (!groups[acaoId]) {
+      groups[acaoId] = {
+        acao_nome: item.acao_nome || 'Sem Ação de Extensão',
+        items: []
+      };
+    }
+    groups[acaoId].items.push(item);
+  }
+  return groups;
+});
+
 onMounted(() => {
   setDefaultDates();
   fetchReports();
@@ -122,30 +158,34 @@ onMounted(() => {
           Horas de atendimento computadas com o fator de planejamento de 2.0x.
         </p>
 
-        <div style="overflow-x: auto;">
-          <table class="report-table">
-            <thead>
-              <tr>
-                <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem;">Monitor</th>
-                <th style="background-color: #008744; color: white; text-align: right; padding: 0.75rem; width: 140px;">Horas</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="monitorReports.length === 0">
-                <td colspan="2" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                  Nenhum registro encontrado neste período.
-                </td>
-              </tr>
-              <tr v-for="item in monitorReports" :key="item.monitor_id" class="table-row">
-                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-weight: 500;">
-                  {{ item.monitor_nome }}
-                </td>
-                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600; color: #008744;">
-                  {{ item.horas_planejamento }}h
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="monitorReports.length === 0" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+          Nenhum registro encontrado neste período.
+        </div>
+
+        <div v-else v-for="(group, acaoId) in monitorReportsByAcao" :key="acaoId" style="margin-bottom: 2rem;">
+          <h4 style="color: var(--text-primary); font-size: 1rem; margin-bottom: 0.75rem; font-weight: 600; border-left: 3px solid #008744; padding-left: 0.5rem;">
+            {{ group.acao_nome }}
+          </h4>
+          <div style="overflow-x: auto;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem;">Monitor</th>
+                  <th style="background-color: #008744; color: white; text-align: right; padding: 0.75rem; width: 140px;">Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in group.items" :key="item.monitor_id" class="table-row">
+                  <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-weight: 500;">
+                    {{ item.monitor_nome }}
+                  </td>
+                  <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600; color: #008744;">
+                    {{ item.horas_planejamento }}h
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -158,34 +198,38 @@ onMounted(() => {
           Horas reais de monitoria consumidas pela comunidade acadêmica.
         </p>
 
-        <div style="overflow-x: auto;">
-          <table class="report-table">
-            <thead>
-              <tr>
-                <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem; width: 120px;">Matrícula</th>
-                <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem;">Nome do Aluno</th>
-                <th style="background-color: #008744; color: white; text-align: right; padding: 0.75rem; width: 100px;">Horas</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="studentReports.length === 0">
-                <td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                  Nenhum registro encontrado neste período.
-                </td>
-              </tr>
-              <tr v-for="item in studentReports" :key="item.matricula" class="table-row">
-                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-family: monospace; color: var(--text-secondary);">
-                  {{ item.matricula }}
-                </td>
-                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-weight: 500;">
-                  {{ item.nome }}
-                </td>
-                <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600; color: var(--color-primary);">
-                  {{ item.horas_consumidas }}h
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="studentReports.length === 0" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+          Nenhum registro encontrado neste período.
+        </div>
+
+        <div v-else v-for="(group, acaoId) in studentReportsByAcao" :key="acaoId" style="margin-bottom: 2rem;">
+          <h4 style="color: var(--text-primary); font-size: 1rem; margin-bottom: 0.75rem; font-weight: 600; border-left: 3px solid #008744; padding-left: 0.5rem;">
+            {{ group.acao_nome }}
+          </h4>
+          <div style="overflow-x: auto;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem; width: 120px;">Matrícula</th>
+                  <th style="background-color: #008744; color: white; text-align: left; padding: 0.75rem;">Nome do Aluno</th>
+                  <th style="background-color: #008744; color: white; text-align: right; padding: 0.75rem; width: 100px;">Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in group.items" :key="item.matricula" class="table-row">
+                  <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-family: monospace; color: var(--text-secondary);">
+                    {{ item.matricula }}
+                  </td>
+                  <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); font-weight: 500;">
+                    {{ item.nome }}
+                  </td>
+                  <td style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600; color: var(--color-primary);">
+                    {{ item.horas_consumidas }}h
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
